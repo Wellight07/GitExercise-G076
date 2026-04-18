@@ -1,5 +1,17 @@
 Adam wakes up in the morning.
 He brushes his teeth.
 He has breakfast.
+<<<<<<< HEAD
 Then he watched Youtube
 then he takes bath
+=======
+Then he cheked instagram
+<<<<<<< HEAD
+he goes to class
+iuiuiuiui
+lklklklklklk
+=======
+then he takes bath
+>>>>>>> main
+>>>>>>> at-the-class
+adasdsdsd
