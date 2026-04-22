@@ -2,34 +2,108 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Budget Mate</title>
+<title>Dashboard Layout</title>
 
-
-<link rel="stylesheet" href=""   
 
 </head>
 
-<div classc="sidebar"
-<h2>
-Budgetmate
-</h2>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+<h2>BudgetMate</h2>
+
 <div class="menu">
-<div onclick="showpage('dashboard')">Dashboard</div>
-<div onclick="showpage('Add')">Add</div>
-<div onclick="showpage('analysis')">Analysis</div>
-<div onclick="showpage('history')">History</div>
-<div onclick="showpage('goals')">Goals</div>
-<div onclick="showpage('settings')">Settings</div>
+<div onclick="showPage('dashboard')">Dashboard</div>
+<div onclick="showPage('add')">Add</div>
+<div onclick="showPage('analysis')">Analysis</div>
+<div onclick="showPage('settings')">Settings</div>
+<div onclick="showPage('history')">History</div>
+<div onclick="showPage('goals')">Goals</div>
+</div>
 </div>
 
-(main)
-<div clsss="main">
+<!-- MAIN -->
+<div class="main">
 
-(dashboards)
+<!-- DASHBOARD -->
 <div id="dashboard" class="page active">
-
 
 <div class="header">
 <h2>Dashboard</h2>
 <input placeholder="Search...">
 </div>
+
+<div class="cards">
+<div class="card">
+<h4>Balance</h4>
+<h2>RM</h2>
+</div>
+
+<div class="card">
+<h4>Income</h4>
+<h2>RM 8,200</h2>
+</div>
+
+<div class="card">
+<h4>Expense</h4>
+<h2>RM 4,300</h2>
+</div>
+</div>
+
+<div class="grid">
+
+<div class="left">
+<div class="panel">
+<h4>Trend Chart</h4>
+<div class="box"></div>
+</div>
+
+<div class="panel">
+<h4>Transactions</h4>
+<table>
+<tr><td>Food</td><td>- RM 20</td></tr>
+<tr><td>Salary</td><td>+ RM 3000</td></tr>
+<tr><td>Transport</td><td>- RM 15</td></tr>
+</table>
+</div>
+</div>
+
+<div class="right">
+<div class="panel">
+<h4>Spending</h4>
+<div class="box"></div>
+</div>
+
+<div class="panel">
+<h4>Summary</h4>
+<p>Total: RM 4300</p>
+<p>Top: Food</p>
+</div>
+</div>
+
+</div>
+
+</div>
+
+<!-- ADD PAGE -->
+<div id="add" class="page">
+<h2>Add Page</h2>
+</div>
+
+<!-- ANALYSIS -->
+<div id="analysis" class="page">
+<h2>Analysis Page</h2>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings" class="page">
+<h2>Settings Page</h2>
+</div>
+
+</div>
+
+
+
+</body>
+</html>
