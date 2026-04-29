@@ -1,4 +1,5 @@
-from flask import Flask
+from flask import Flask, jsonify
+import database
 
 app = Flask(__name__)
 
@@ -6,17 +7,14 @@ app = Flask(__name__)
 def home():
     return "Hello, Flask is running!"
 
-if __name__ == "__main__":
-    app.run(debug=True)
-
 def calculate_balance():
-    transactions = get_transactions()
+    data = database.get_all_transactions()
 
     balance = 0
 
-    for t in transactions:
+    for t in data:
         t_type = t[0]
-        amount = t[1]
+        amount = float(t[1])
 
         if t_type == "income":
             balance += amount
@@ -24,3 +22,24 @@ def calculate_balance():
             balance -= amount
     
     return balance
+
+@app.route("/balance")
+def get_balance():
+    balance = calculate_balance
+    return{"balance" : balance}
+
+@app.route("/add", methods = ["POST"])
+def add_transactions():
+    data =request.json
+
+    database.insert_data(
+        data["type"],
+        data["amount"],
+        data["category"],
+        data["date"],
+    )
+
+    return jsonify({"message": "Transactions added successfully"})
+
+if __name__ == "__main__":
+    app.run(debug=True)
