@@ -41,6 +41,13 @@ def add_transactions():
 
     return jsonify({"message": "Transactions added successfully"})
 
+@app.route("/delete/<int:id>", methods=["DELETE"])
+def delete(id):
+    try:
+        database.delete_transactions(id)
+        return jsonify({"message":"Deleted successfully"})
+    except:
+        return jsonify({"error": "Delete failed"})
 if __name__ == "__main__":
     app.run(debug=True)
     

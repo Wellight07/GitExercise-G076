@@ -52,4 +52,16 @@ def get_all_transactions():
     conn.close()
     return rows
 
+# 5. Delete transactions
+def delete_transactios(transaction_id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        DELETE FROM transactions WHERE id = ?
+    """, (transaction_id))
+
+    conn.commit()
+    conn.close()
+    
 init_db()
