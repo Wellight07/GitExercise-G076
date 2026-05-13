@@ -1,109 +1,269 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Dashboard Layout</title>
-
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BudgetMate Dashboard</title>
+  <link rel="stylesheet" href="code.css">
 </head>
 
 <body>
+  <section id="home" class="home-page">
+    <div class="home-content">
+      <p class="home-label">Personal Finance Dashboard</p>
+      <h1>BudgetMate</h1>
+      <p class="home-text">Manage your budget, view spending, and track savings goals in one clean dashboard.</p>
+      <button class="enter-btn" onclick="enterApp()">Enter Dashboard</button>
+    </div>
+  </section>
 
-<!-- SIDEBAR -->
-<div class="sidebar">
-<h2>BudgetMate</h2>
+  <div id="appShell" class="app-shell app-hidden">
+    <aside class="sidebar">
+      <h2>BudgetMate</h2>
 
-<div class="menu">
-<div onclick="showPage('dashboard')">Dashboard</div>
-<div onclick="showPage('add')">Add</div>
-<div onclick="showPage('analysis')">Analysis</div>
-<div onclick="showPage('settings')">Settings</div>
-<div onclick="showPage('history')">History</div>
-<div onclick="showPage('goals')">Goals</div>
-</div>
-</div>
+      <nav class="menu">
+        <div class="active-menu" onclick="showPage('dashboard', this)">Dashboard</div>
+        <div onclick="showPage('add', this)">Add</div>
+        <div onclick="showPage('analysis', this)">Analysis</div>
+        <div onclick="showPage('settings', this)">Settings</div>
+        <div onclick="showPage('history', this)">History</div>
+        <div onclick="showPage('goals', this)">Goals</div>
+      </nav>
+    </aside>
 
-<!-- MAIN -->
-<div class="main">
+    <main class="main">
+      <section id="dashboard" class="page active">
+        <div class="header">
+          <div>
+            <h2>Dashboard</h2>
+            <p>Track your income, expenses, and savings goal.</p>
+          </div>
+          <input placeholder="Search...">
+        </div>
 
-<!-- DASHBOARD -->
-<div id="dashboard" class="page active">
+        <div class="cards">
+          <div class="card">
+            <h4>Balance</h4>
+            <h2>RM 0</h2>
+            <p>Total available money</p>
+          </div>
 
-<div class="header">
-<h2>Dashboard</h2>
-<input placeholder="Search...">
-</div>
+          <div class="card">
+            <h4>Income</h4>
+            <h2>RM 0</h2>
+            <p>This month income</p>
+          </div>
 
-<div class="cards">
-<div class="card">
-<h4>Balance</h4>
-<h2>RM</h2>
-</div>
+          <div class="card">
+            <h4>Expense</h4>
+            <h2>RM 0</h2>
+            <p>This month expense</p>
+          </div>
 
-<div class="card">
-<h4>Income</h4>
-<h2>RM 8,200</h2>
-</div>
+          <div class="card">
+            <h4>Savings</h4>
+            <h2>RM 0</h2>
+            <p>Current savings</p>
+          </div>
+        </div>
+      </section>
 
-<div class="card">
-<h4>Expense</h4>
-<h2>RM 4,300</h2>
-</div>
-</div>
+      <section id="add" class="page">
+        <div class="header">
+          <div>
+            <h2>Add Transaction</h2>
+            <p>Create a new income or expense record.</p>
+          </div>
+        </div>
 
-<div class="grid">
+        <div class="form-grid">
+          <section class="panel form-panel">
+            <h3>Income</h3>
+            <label>Income Name</label>
+            <input type="text" placeholder="Example: Allowance">
 
-<div class="left">
-<div class="panel">
-<h4>Trend Chart</h4>
-<div class="box"></div>
-</div>
+            <label>Amount</label>
+            <input type="number" placeholder="RM 0">
 
-<div class="panel">
-<h4>Transactions</h4>
-<table>
-<tr><td>Food</td><td>- RM 20</td></tr>
-<tr><td>Salary</td><td>+ RM 3000</td></tr>
-<tr><td>Transport</td><td>- RM 15</td></tr>
-</table>
-</div>
-</div>
+            <label>Date</label>
+            <input type="date">
 
-<div class="right">
-<div class="panel">
-<h4>Spending</h4>
-<div class="box"></div>
-</div>
+            <button class="primary-btn">Add Income</button>
+          </section>
 
-<div class="panel">
-<h4>Summary</h4>
-<p>Total: RM 4300</p>
-<p>Top: Food</p>
-</div>
-</div>
+          <section class="panel form-panel">
+            <h3>Expense</h3>
+            <label>Expense Name</label>
+            <input type="text" placeholder="Example: Food">
 
-</div>
+            <label>Amount</label>
+            <input type="number" placeholder="RM 0">
 
-</div>
+            <label>Category</label>
+            <select>
+              <option>Food</option>
+              <option>Transport</option>
+              <option>Shopping</option>
+              <option>Education</option>
+            </select>
 
-<!-- ADD PAGE -->
-<div id="add" class="page">
-<h2>Add Page</h2>
-</div>
+            <button class="primary-btn danger-btn">Add Expense</button>
+          </section>
+        </div>
+      </section>
 
-<!-- ANALYSIS -->
-<div id="analysis" class="page">
-<h2>Analysis Page</h2>
-</div>
+      <section id="analysis" class="page">
+        <div class="header">
+          <div>
+            <h2>Analysis</h2>
+            <p>View your spending pattern and savings overview.</p>
+          </div>
+        </div>
 
-<!-- SETTINGS -->
-<div id="settings" class="page">
-<h2>Settings Page</h2>
-</div>
+        <div class="cards">
+          <div class="card">
+            <h4>Total Income</h4>
+            <h2>RM 0</h2>
+            <p>All income received</p>
+          </div>
 
-</div>
+          <div class="card">
+            <h4>Total Expense</h4>
+            <h2>RM 0</h2>
+            <p>All expenses used</p>
+          </div>
 
+          <div class="card">
+            <h4>Savings</h4>
+            <h2>RM 0</h2>
+            <p>Income minus expense</p>
+          </div>
 
+          <div class="card">
+            <h4>Top Category</h4>
+            <h2>Food</h2>
+            <p>Highest spending area</p>
+          </div>
+        </div>
+      </section>
 
+      <section id="settings" class="page">
+        <div class="header">
+          <div>
+            <h2>Settings</h2>
+            <p>Manage profile, currency, and display preferences.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <section class="panel form-panel">
+            <h3>Profile</h3>
+            <label>Name</label>
+            <input type="text" placeholder="Enter your name">
+
+            <label>Email</label>
+            <input type="email" placeholder="example@email.com">
+
+            <label>Student ID</label>
+            <input type="text" placeholder="Enter student ID">
+          </section>
+
+          <section class="panel form-panel">
+            <h3>Preferences</h3>
+            <label>Currency</label>
+            <select>
+              <option>RM</option>
+              <option>USD</option>
+              <option>SGD</option>
+            </select>
+
+            <div class="setting-row">
+              <span>Dark Mode</span>
+              <input type="checkbox">
+            </div>
+
+            <div class="setting-row">
+              <span>Monthly Reminder</span>
+              <input type="checkbox">
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="history" class="page">
+        <div class="header">
+          <div>
+            <h2>History</h2>
+            <p>Review sample transaction records.</p>
+          </div>
+          <input placeholder="Search history...">
+        </div>
+
+        <section class="panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Date</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="tag income-tag">Income</span></td>
+                <td>Allowance</td>
+                <td>Monthly</td>
+                <td>13 May 2026</td>
+                <td class="income-text">+ RM 500</td>
+              </tr>
+
+              <tr>
+                <td><span class="tag expense-tag">Expense</span></td>
+                <td>Lunch</td>
+                <td>Food</td>
+                <td>13 May 2026</td>
+                <td class="expense-text">- RM 25</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </section>
+
+      <section id="goals" class="page">
+        <div class="header">
+          <div>
+            <h2>Goals</h2>
+            <p>Plan your savings target and track progress.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <section class="panel form-panel">
+            <h3>Create Goal</h3>
+            <label>Goal Name</label>
+            <input type="text" placeholder="Example: New laptop">
+
+            <label>Target Amount</label>
+            <input type="number" placeholder="RM 1000">
+
+            <label>Target Date</label>
+            <input type="date">
+
+            <button class="primary-btn">Set Goal</button>
+          </section>
+
+          <section class="panel goal-panel">
+            <h3>Goal Progress</h3>
+            <div class="goal-circle">0%</div>
+            <p>RM 0 saved from RM 1,000 goal</p>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="code.js"></script>
 </body>
 </html>
