@@ -64,4 +64,13 @@ def delete_transactios(transaction_id):
     conn.commit()
     conn.close()
     
+# 6. view table
+def view_table():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM transactions")
+    rows = cursor.fetchall()
+
+    conn.close()
 init_db()

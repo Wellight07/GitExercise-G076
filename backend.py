@@ -13,8 +13,8 @@ def calculate_balance():
     balance = 0
 
     for t in data:
-        t_type = t[0]
-        amount = float(t[1])
+        t_type = t[1]
+        amount = float(t[2])
 
         if t_type == "income":
             balance += amount
@@ -48,6 +48,22 @@ def delete(id):
         return jsonify({"message":"Deleted successfully"})
     except:
         return jsonify({"error": "Delete failed"})
+    
+def view_transactions_table():
+    database.view_table()
+
+    rows = database.get_all_transactions()
+
+    print("\n=== Transactions Table ===")
+
+    for row in rows:
+        print(row)
+
+command = input("")
+
+if command == "view":
+    view_transactions_table()
+
 if __name__ == "__main__":
     app.run(debug=True)
     
