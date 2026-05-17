@@ -115,7 +115,7 @@ def view_transactions_table():
     print("-" * 60)
 
     for row in rows:
-        print(f"{row[0]} | {row[1]} | {row[2]} | {row[3]} | {row[4]} | {row[5]}")
+        print(f"{row[0]} | {row[1]} | {row[2]} | {row[3]} | {row[4]}")
 
 def run_flask():
     app.run(debug=False, use_reloader=False)
