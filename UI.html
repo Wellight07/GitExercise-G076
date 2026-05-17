@@ -44,25 +44,25 @@
         <div class="cards">
           <div class="card">
             <h4>Balance</h4>
-            <h2>RM 0</h2>
+            <h2 id="balanceValue">RM 0.00</h2>
             <p>Total available money</p>
           </div>
 
           <div class="card">
             <h4>Income</h4>
-            <h2>RM 0</h2>
+            <h2 id="incomeValue">RM 0.00</h2>
             <p>This month income</p>
           </div>
 
           <div class="card">
             <h4>Expense</h4>
-            <h2>RM 0</h2>
+            <h2 id="expenseValue">RM 0.00</h2>
             <p>This month expense</p>
           </div>
 
           <div class="card">
             <h4>Savings</h4>
-            <h2>RM 0</h2>
+            <h2 id="savingsValue">RM 0.00</h2>
             <p>Current savings</p>
           </div>
         </div>
@@ -79,37 +79,42 @@
         <div class="form-grid">
           <section class="panel form-panel">
             <h3>Income</h3>
-            <label>Income Name</label>
-            <input type="text" placeholder="Example: Allowance">
+            <label for="incomeName">Income Name</label>
+            <input id="incomeName" type="text" placeholder="Example: Allowance">
 
-            <label>Amount</label>
-            <input type="number" placeholder="RM 0">
+            <label for="incomeAmount">Amount</label>
+            <input id="incomeAmount" type="number" min="0" step="0.01" placeholder="RM 0">
 
-            <label>Date</label>
-            <input type="date">
+            <label for="incomeDate">Date</label>
+            <input id="incomeDate" type="date">
 
-            <button class="primary-btn">Add Income</button>
+            <button class="primary-btn" onclick="addTransaction('income')">Add Income</button>
           </section>
 
           <section class="panel form-panel">
             <h3>Expense</h3>
-            <label>Expense Name</label>
-            <input type="text" placeholder="Example: Food">
+            <label for="expenseName">Expense Name</label>
+            <input id="expenseName" type="text" placeholder="Example: Lunch">
 
-            <label>Amount</label>
-            <input type="number" placeholder="RM 0">
+            <label for="expenseAmount">Amount</label>
+            <input id="expenseAmount" type="number" min="0" step="0.01" placeholder="RM 0">
 
-            <label>Category</label>
-            <select>
+            <label for="expenseCategory">Category</label>
+            <select id="expenseCategory">
               <option>Food</option>
               <option>Transport</option>
               <option>Shopping</option>
               <option>Education</option>
             </select>
 
-            <button class="primary-btn danger-btn">Add Expense</button>
+            <label for="expenseDate">Date</label>
+            <input id="expenseDate" type="date">
+
+            <button class="primary-btn danger-btn" onclick="addTransaction('expense')">Add Expense</button>
           </section>
         </div>
+
+        <p id="formMessage" class="form-message"></p>
       </section>
 
       <section id="analysis" class="page">
@@ -123,25 +128,25 @@
         <div class="cards">
           <div class="card">
             <h4>Total Income</h4>
-            <h2>RM 0</h2>
+            <h2 id="analysisIncomeValue">RM 0.00</h2>
             <p>All income received</p>
           </div>
 
           <div class="card">
             <h4>Total Expense</h4>
-            <h2>RM 0</h2>
+            <h2 id="analysisExpenseValue">RM 0.00</h2>
             <p>All expenses used</p>
           </div>
 
           <div class="card">
             <h4>Savings</h4>
-            <h2>RM 0</h2>
+            <h2 id="analysisSavingsValue">RM 0.00</h2>
             <p>Income minus expense</p>
           </div>
 
           <div class="card">
             <h4>Top Category</h4>
-            <h2>Food</h2>
+            <h2 id="topCategoryValue">None</h2>
             <p>Highest spending area</p>
           </div>
         </div>
@@ -194,7 +199,7 @@
         <div class="header">
           <div>
             <h2>History</h2>
-            <p>Review sample transaction records.</p>
+            <p>Review transaction records from the Flask backend.</p>
           </div>
           <input placeholder="Search history...">
         </div>
@@ -208,23 +213,12 @@
                 <th>Category</th>
                 <th>Date</th>
                 <th>Amount</th>
+                <th>Action</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="historyBody">
               <tr>
-                <td><span class="tag income-tag">Income</span></td>
-                <td>Allowance</td>
-                <td>Monthly</td>
-                <td>13 May 2026</td>
-                <td class="income-text">+ RM 500</td>
-              </tr>
-
-              <tr>
-                <td><span class="tag expense-tag">Expense</span></td>
-                <td>Lunch</td>
-                <td>Food</td>
-                <td>13 May 2026</td>
-                <td class="expense-text">- RM 25</td>
+                <td colspan="6" class="empty-state">No transactions yet.</td>
               </tr>
             </tbody>
           </table>

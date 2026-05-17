@@ -1,8 +1,12 @@
 import sqlite3
+from pathlib import Path
+
+
+DB_PATH = Path(__file__).resolve().parent / "BudgetMate.db"
 
 # 1. Connect database
 def get_db():
-    conn = sqlite3.connect("BudgetMate.db")
+    conn = sqlite3.connect(DB_PATH)
     return conn
 
 
@@ -15,6 +19,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS transactions(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             type TEXT NOT NULL,
+            name TEXT NOT NULL,
             amount REAL NOT NULL,
             category TEXT,
             date TEXT
@@ -27,14 +32,14 @@ def init_db():
 
 
 # 3. Insert Data
-def insert_data(type, amount, category, date):
+def insert_data(type, name, amount, category, date):
     conn = get_db()
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO transactions (type, amount, category, date)
-        VALUES (?, ?, ?, ?)
-    """, (type, amount, category, date))
+        INSERT INTO transactions (type, name, amount, category, date)
+        VALUES (?, ?, ?, ?, ?)
+    """, (type, name, amount, category, date))
 
     conn.commit()
     conn.close()
@@ -53,16 +58,18 @@ def get_all_transactions():
     return rows
 
 # 5. Delete transactions
-def delete_transactios(transaction_id):
+def delete_transactions(transaction_id):
     conn = get_db()
     cursor = conn.cursor()
 
     cursor.execute("""
         DELETE FROM transactions WHERE id = ?
-    """, (transaction_id))
+    """, (transaction_id,))
 
     conn.commit()
+    deleted_count = cursor.rowcount
     conn.close()
+    return deleted_count
     
 # 6. view table
 def view_table():
@@ -73,4 +80,6 @@ def view_table():
     rows = cursor.fetchall()
 
     conn.close()
+    return rows
+
 init_db()
