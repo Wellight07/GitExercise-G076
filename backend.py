@@ -139,6 +139,7 @@ def terminal_commands():
 if __name__ == "__main__":
     database.init_db()
 
+    
 flask_thread = Thread(target=run_flask)
 flask_thread.daemon = True
 flask_thread.start()
