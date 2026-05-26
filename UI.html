@@ -6,7 +6,6 @@
   <title>BudgetMate Dashboard</title>
   <link rel="stylesheet" href="UI.css">
 </head>
-
 <body>
   <section id="home" class="home-page">
     <div class="home-content">
@@ -20,7 +19,6 @@
   <div id="appShell" class="app-shell app-hidden">
     <aside class="sidebar">
       <h2>BudgetMate</h2>
-
       <nav class="menu">
         <div class="active-menu" onclick="showPage('dashboard', this)">Dashboard</div>
         <div onclick="showPage('add', this)">Add</div>
@@ -47,25 +45,32 @@
             <h2 id="balanceValue">RM 0.00</h2>
             <p>Total available money</p>
           </div>
-
           <div class="card">
             <h4>Income</h4>
             <h2 id="incomeValue">RM 0.00</h2>
             <p>This month income</p>
           </div>
-
           <div class="card">
             <h4>Expense</h4>
             <h2 id="expenseValue">RM 0.00</h2>
             <p>This month expense</p>
           </div>
-
           <div class="card">
             <h4>Savings</h4>
             <h2 id="savingsValue">RM 0.00</h2>
             <p>Current savings</p>
           </div>
         </div>
+
+        <section class="panel chart-panel">
+          <div class="panel-title">
+            <div>
+              <h3>Income vs Expense Chart</h3>
+              <p>Quick view of your money flow.</p>
+            </div>
+          </div>
+          <div class="bar-chart" id="summaryChart"></div>
+        </section>
       </section>
 
       <section id="add" class="page">
@@ -76,29 +81,28 @@
           </div>
         </div>
 
+        <p id="formMessage" class="form-message"></p>
+
         <div class="form-grid">
           <section class="panel form-panel">
             <h3>Income</h3>
             <label for="incomeName">Income Name</label>
             <input id="incomeName" type="text" placeholder="Example: Allowance">
-
             <label for="incomeAmount">Amount</label>
-            <input id="incomeAmount" type="number" min="0" step="0.01" placeholder="RM 0">
-
+            <input id="incomeAmount" type="number" placeholder="RM 0">
             <label for="incomeDate">Date</label>
             <input id="incomeDate" type="date">
-
             <button class="primary-btn" onclick="addTransaction('income')">Add Income</button>
           </section>
 
           <section class="panel form-panel">
             <h3>Expense</h3>
             <label for="expenseName">Expense Name</label>
-            <input id="expenseName" type="text" placeholder="Example: Lunch">
-
+            <input id="expenseName" type="text" placeholder="Example: Food">
             <label for="expenseAmount">Amount</label>
-            <input id="expenseAmount" type="number" min="0" step="0.01" placeholder="RM 0">
-
+            <input id="expenseAmount" type="number" placeholder="RM 0">
+            <label for="expenseDate">Date</label>
+            <input id="expenseDate" type="date">
             <label for="expenseCategory">Category</label>
             <select id="expenseCategory">
               <option>Food</option>
@@ -106,15 +110,9 @@
               <option>Shopping</option>
               <option>Education</option>
             </select>
-
-            <label for="expenseDate">Date</label>
-            <input id="expenseDate" type="date">
-
             <button class="primary-btn danger-btn" onclick="addTransaction('expense')">Add Expense</button>
           </section>
         </div>
-
-        <p id="formMessage" class="form-message"></p>
       </section>
 
       <section id="analysis" class="page">
@@ -131,25 +129,32 @@
             <h2 id="analysisIncomeValue">RM 0.00</h2>
             <p>All income received</p>
           </div>
-
           <div class="card">
             <h4>Total Expense</h4>
             <h2 id="analysisExpenseValue">RM 0.00</h2>
             <p>All expenses used</p>
           </div>
-
           <div class="card">
             <h4>Savings</h4>
             <h2 id="analysisSavingsValue">RM 0.00</h2>
             <p>Income minus expense</p>
           </div>
-
           <div class="card">
             <h4>Top Category</h4>
             <h2 id="topCategoryValue">None</h2>
             <p>Highest spending area</p>
           </div>
         </div>
+
+        <section class="panel chart-panel">
+          <div class="panel-title">
+            <div>
+              <h3>Expense by Category</h3>
+              <p>See which category uses the most money.</p>
+            </div>
+          </div>
+          <div class="category-chart" id="categoryChart"></div>
+        </section>
       </section>
 
       <section id="settings" class="page">
@@ -165,10 +170,8 @@
             <h3>Profile</h3>
             <label>Name</label>
             <input type="text" placeholder="Enter your name">
-
             <label>Email</label>
             <input type="email" placeholder="example@email.com">
-
             <label>Student ID</label>
             <input type="text" placeholder="Enter student ID">
           </section>
@@ -181,12 +184,10 @@
               <option>USD</option>
               <option>SGD</option>
             </select>
-
             <div class="setting-row">
               <span>Dark Mode</span>
               <input type="checkbox">
             </div>
-
             <div class="setting-row">
               <span>Monthly Reminder</span>
               <input type="checkbox">
@@ -199,12 +200,21 @@
         <div class="header">
           <div>
             <h2>History</h2>
-            <p>Review transaction records from the Flask backend.</p>
+            <p>Review transaction records.</p>
           </div>
-          <input placeholder="Search history...">
+          <div class="history-tools">
+            <select id="historyRange" onchange="loadDashboard()">
+              <option value="all">All Time</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="year">This Year</option>
+            </select>
+            <input id="historySearch" placeholder="Search history..." oninput="loadDashboard()">
+          </div>
         </div>
 
         <section class="panel">
+          <div class="history-summary" id="historySummary"></div>
           <table>
             <thead>
               <tr>
@@ -216,11 +226,7 @@
                 <th>Action</th>
               </tr>
             </thead>
-            <tbody id="historyBody">
-              <tr>
-                <td colspan="6" class="empty-state">No transactions yet.</td>
-              </tr>
-            </tbody>
+            <tbody id="historyBody"></tbody>
           </table>
         </section>
       </section>
@@ -238,13 +244,10 @@
             <h3>Create Goal</h3>
             <label>Goal Name</label>
             <input type="text" placeholder="Example: New laptop">
-
             <label>Target Amount</label>
             <input type="number" placeholder="RM 1000">
-
             <label>Target Date</label>
             <input type="date">
-
             <button class="primary-btn">Set Goal</button>
           </section>
 
