@@ -11,8 +11,8 @@
     <div class="home-content">
       <p class="home-label">Personal Finance Dashboard</p>
       <h1>BudgetMate</h1>
-      <p class="home-text">Manage your budget, view spending, and track savings goals in one clean dashboard.</p>
-      <button class="enter-btn" onclick="enterApp()">Enter Dashboard</button>
+      <p class="home-text">Manage your budget, view spending, and receive smart suggestions in one clean dashboard.</p>
+      <button class="enter-btn" type="button" onclick="enterApp()">Enter Dashboard</button>
     </div>
   </section>
 
@@ -155,6 +155,17 @@
           </div>
           <div class="category-chart" id="categoryChart"></div>
         </section>
+
+        <section class="panel advice-panel">
+          <div class="panel-title">
+            <div>
+              <h3>Smart Suggestions</h3>
+              <p>Personal tips based on your income and spending.</p>
+            </div>
+            <span class="advice-status" id="adviceStatus">Waiting for data</span>
+          </div>
+          <div class="advice-list" id="adviceList"></div>
+        </section>
       </section>
 
       <section id="settings" class="page">
@@ -168,29 +179,24 @@
         <div class="form-grid">
           <section class="panel form-panel">
             <h3>Profile</h3>
-            <label>Name</label>
-            <input type="text" placeholder="Enter your name">
-            <label>Email</label>
-            <input type="email" placeholder="example@email.com">
-            <label>Student ID</label>
-            <input type="text" placeholder="Enter student ID">
+            <label for="settingsName">Name</label>
+            <input id="settingsName" type="text" placeholder="Enter your name">
+            <label for="settingsStudentId">Student ID</label>
+            <input id="settingsStudentId" type="text" placeholder="Enter student ID">
+            <button class="primary-btn" type="button" onclick="saveProfileSettings()">Save Profile</button>
           </section>
 
           <section class="panel form-panel">
             <h3>Preferences</h3>
-            <label>Currency</label>
-            <select>
-              <option>RM</option>
-              <option>USD</option>
-              <option>SGD</option>
+            <label for="settingsCurrency">Currency</label>
+            <select id="settingsCurrency" onchange="savePreferenceSettings()">
+              <option value="RM">RM - Malaysian Ringgit</option>
+              <option value="USD">USD - US Dollar</option>
+              <option value="SGD">SGD - Singapore Dollar</option>
             </select>
             <div class="setting-row">
-              <span>Dark Mode</span>
-              <input type="checkbox">
-            </div>
-            <div class="setting-row">
-              <span>Monthly Reminder</span>
-              <input type="checkbox">
+              <label for="settingsDarkMode">Dark Mode</label>
+              <input id="settingsDarkMode" type="checkbox" onchange="savePreferenceSettings()">
             </div>
           </section>
         </div>
@@ -202,19 +208,10 @@
             <h2>History</h2>
             <p>Review transaction records.</p>
           </div>
-          <div class="history-tools">
-            <select id="historyRange" onchange="loadDashboard()">
-              <option value="all">All Time</option>
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
-              <option value="year">This Year</option>
-            </select>
-            <input id="historySearch" placeholder="Search history..." oninput="loadDashboard()">
-          </div>
+          <input placeholder="Search history...">
         </div>
 
         <section class="panel">
-          <div class="history-summary" id="historySummary"></div>
           <table>
             <thead>
               <tr>
@@ -239,24 +236,39 @@
           </div>
         </div>
 
-        <div class="form-grid">
+        <div class="goal-layout">
           <section class="panel form-panel">
             <h3>Create Goal</h3>
-            <label>Goal Name</label>
-            <input type="text" placeholder="Example: New laptop">
-            <label>Target Amount</label>
-            <input type="number" placeholder="RM 1000">
-            <label>Target Date</label>
-            <input type="date">
-            <button class="primary-btn">Set Goal</button>
+            <label for="goalName">Goal Name</label>
+            <input id="goalName" type="text" placeholder="Example: New laptop">
+            <label for="goalAmount">Target Amount</label>
+            <input id="goalAmount" type="number" min="1" step="0.01" placeholder="RM 1000">
+            <label for="goalDate">Target Date</label>
+            <input id="goalDate" type="date">
+            <button class="primary-btn" type="button" onclick="createGoal()">Set Goal</button>
+            <p id="goalMessage" class="form-message"></p>
           </section>
 
-          <section class="panel goal-panel">
-            <h3>Goal Progress</h3>
-            <div class="goal-circle">0%</div>
-            <p>RM 0 saved from RM 1,000 goal</p>
+          <section class="panel goal-summary-panel">
+            <h3>Goals Overview</h3>
+            <div class="goal-summary">
+              <div>
+                <span>Active Goals</span>
+                <strong id="activeGoalsValue">0</strong>
+              </div>
+              <div>
+                <span>Total Saved</span>
+                <strong id="goalSavedValue">RM 0.00</strong>
+              </div>
+              <div>
+                <span>Total Target</span>
+                <strong id="goalTargetValue">RM 0.00</strong>
+              </div>
+            </div>
           </section>
         </div>
+
+        <section class="goal-list" id="goalList"></section>
       </section>
     </main>
   </div>

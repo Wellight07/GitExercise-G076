@@ -1,4 +1,11 @@
 const STORAGE_KEY = "budgetmate_transactions";
+const GOALS_KEY = "budgetmate_goals";
+const SETTINGS_KEY = "budgetmate_settings";
+
+const defaultSettings = {
+  currency: "RM",
+  darkMode: false
+};
 
 const starterTransactions = [
   { id: 1, type: "income", name: "Allowance", amount: 500, category: "Income", date: "2026-05-13" },
@@ -10,6 +17,39 @@ const starterTransactions = [
 function enterApp() {
   document.getElementById("home").style.display = "none";
   document.getElementById("appShell").classList.remove("app-hidden");
+  applySettings();
+  loadDashboard();
+}
+
+function getSettings() {
+  try {
+    return Object.assign({}, defaultSettings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
+  } catch (error) {
+    return Object.assign({}, defaultSettings);
+  }
+}
+
+function getCurrentUser() {
+  return { id: "local-user" };
+}
+
+function applySettings() {
+  const settings = getSettings();
+  setValue("settingsCurrency", settings.currency);
+  document.getElementById("settingsDarkMode").checked = settings.darkMode;
+  document.body.classList.toggle("dark-mode", settings.darkMode);
+}
+
+function saveProfileSettings() {
+  return;
+}
+
+function savePreferenceSettings() {
+  const settings = getSettings();
+  settings.currency = getValue("settingsCurrency") || "RM";
+  settings.darkMode = document.getElementById("settingsDarkMode").checked;
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  applySettings();
   loadDashboard();
 }
 
@@ -45,7 +85,201 @@ function loadDashboard() {
 
   renderSummaryChart(totals);
   renderCategoryChart(totals.categoryTotals);
+  renderSmartSuggestions(totals);
   renderHistory(transactions);
+  renderGoals();
+}
+
+function createGoal() {
+  const name = getValue("goalName");
+  const target = Number(getValue("goalAmount"));
+  const targetDate = getValue("goalDate");
+
+  if (!name || target <= 0 || !targetDate) {
+    showGoalMessage("Please enter a goal name, target amount, and target date.", "error");
+    return;
+  }
+
+  const selectedDate = new Date(targetDate + "T23:59:59");
+
+  if (selectedDate < new Date()) {
+    showGoalMessage("Please choose a future target date.", "error");
+    return;
+  }
+
+  const goals = getGoals();
+  goals.push({
+    id: Date.now(),
+    name: name,
+    target: target,
+    saved: 0,
+    targetDate: targetDate
+  });
+
+  saveGoals(goals);
+  setValue("goalName", "");
+  setValue("goalAmount", "");
+  setValue("goalDate", "");
+  showGoalMessage("Savings goal created successfully.", "success");
+  renderGoals();
+}
+
+function addGoalSavings(id) {
+  const amount = Number(getValue("goalContribution-" + id));
+
+  if (amount <= 0) {
+    showGoalMessage("Enter an amount greater than RM 0.", "error");
+    return;
+  }
+
+  const goals = getGoals();
+  const goal = goals.find(function(item) {
+    return item.id === id;
+  });
+
+  if (!goal) {
+    return;
+  }
+
+  goal.saved = Math.min(Number(goal.saved) + amount, Number(goal.target));
+  saveGoals(goals);
+  showGoalMessage("Savings progress updated.", "success");
+  renderGoals();
+}
+
+function deleteGoal(id) {
+  const goals = getGoals().filter(function(goal) {
+    return goal.id !== id;
+  });
+
+  saveGoals(goals);
+  showGoalMessage("Goal deleted.", "success");
+  renderGoals();
+}
+
+function renderGoals() {
+  const list = document.getElementById("goalList");
+
+  if (!list) {
+    return;
+  }
+
+  const goals = getGoals();
+  const totalSaved = goals.reduce(function(total, goal) {
+    return total + Number(goal.saved);
+  }, 0);
+  const totalTarget = goals.reduce(function(total, goal) {
+    return total + Number(goal.target);
+  }, 0);
+
+  setText("activeGoalsValue", goals.filter(function(goal) {
+    return Number(goal.saved) < Number(goal.target);
+  }).length);
+  setText("goalSavedValue", formatMoney(totalSaved));
+  setText("goalTargetValue", formatMoney(totalTarget));
+
+  if (goals.length === 0) {
+    list.innerHTML = '<div class="panel empty-state">No savings goals yet. Create your first goal above.</div>';
+    return;
+  }
+
+  list.innerHTML = goals.map(function(goal) {
+    const percentage = Math.min((Number(goal.saved) / Number(goal.target)) * 100, 100);
+    const completed = percentage >= 100;
+    const deadline = getGoalDeadline(goal.targetDate, completed);
+    const remaining = Math.max(Number(goal.target) - Number(goal.saved), 0);
+
+    return `
+      <article class="goal-card ${completed ? "completed" : ""}">
+        <div class="goal-card-header">
+          <div>
+            <h3>${escapeHtml(goal.name)}</h3>
+            <p class="goal-deadline">Target date: ${escapeHtml(goal.targetDate)}</p>
+          </div>
+          <span class="goal-badge ${deadline.overdue ? "overdue" : ""}">${escapeHtml(deadline.text)}</span>
+        </div>
+        <div class="goal-progress-track">
+          <div class="goal-progress-fill" style="width: ${percentage}%"></div>
+        </div>
+        <div class="goal-progress-text">
+          <span>${formatMoney(goal.saved)} of ${formatMoney(goal.target)}</span>
+          <span>${percentage.toFixed(0)}%</span>
+        </div>
+        <p class="goal-deadline">${completed ? "Goal achieved." : formatMoney(remaining) + " remaining."}</p>
+        <div class="goal-actions">
+          <input id="goalContribution-${goal.id}" type="number" min="0.01" step="0.01" placeholder="Add savings amount">
+          <button class="goal-save-btn" type="button" onclick="addGoalSavings(${goal.id})">Add</button>
+          <button class="goal-delete-btn" type="button" onclick="deleteGoal(${goal.id})">Delete Goal</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function getGoalDeadline(targetDate, completed) {
+  if (completed) {
+    return { text: "Completed", overdue: false };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const deadline = new Date(targetDate + "T00:00:00");
+  const days = Math.ceil((deadline - today) / 86400000);
+
+  if (days < 0) {
+    return { text: "Overdue", overdue: true };
+  }
+
+  if (days === 0) {
+    return { text: "Due today", overdue: false };
+  }
+
+  return { text: days + " days left", overdue: false };
+}
+
+function getGoals() {
+  const user = getCurrentUser();
+
+  if (!user) {
+    return [];
+  }
+
+  try {
+    const allGoals = JSON.parse(localStorage.getItem(GOALS_KEY)) || {};
+    return allGoals[user.id] || [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveGoals(goals) {
+  const user = getCurrentUser();
+
+  if (!user) {
+    return;
+  }
+
+  let allGoals = {};
+
+  try {
+    allGoals = JSON.parse(localStorage.getItem(GOALS_KEY)) || {};
+  } catch (error) {
+    allGoals = {};
+  }
+
+  allGoals[user.id] = goals;
+  localStorage.setItem(GOALS_KEY, JSON.stringify(allGoals));
+}
+
+function showGoalMessage(text, status) {
+  const message = document.getElementById("goalMessage");
+
+  if (!message) {
+    return;
+  }
+
+  message.textContent = text;
+  message.className = "form-message " + status;
 }
 
 function addTransaction(type) {
@@ -187,6 +421,129 @@ function renderCategoryChart(categoryTotals) {
       </div>
     `;
   }).join("");
+}
+
+function renderSmartSuggestions(totals) {
+  const list = document.getElementById("adviceList");
+  const status = document.getElementById("adviceStatus");
+
+  if (!list || !status) {
+    return;
+  }
+
+  const suggestions = buildSmartSuggestions(totals);
+  const priority = suggestions.some(function(item) {
+    return item.level === "danger";
+  }) ? "danger" : suggestions.some(function(item) {
+    return item.level === "warning";
+  }) ? "warning" : "success";
+
+  const statusLabels = {
+    danger: "Action needed",
+    warning: "Needs attention",
+    success: "On track"
+  };
+
+  status.textContent = statusLabels[priority];
+  status.className = "advice-status " + priority;
+  list.innerHTML = suggestions.map(function(item) {
+    return `
+      <article class="advice-item ${item.level}">
+        <h4>${escapeHtml(item.title)}</h4>
+        <p>${escapeHtml(item.message)}</p>
+      </article>
+    `;
+  }).join("");
+}
+
+function buildSmartSuggestions(totals) {
+  if (totals.income <= 0) {
+    return [{
+      level: "warning",
+      title: "Add income first",
+      message: "Record your income so BudgetMate can compare your spending and give more accurate suggestions."
+    }];
+  }
+
+  const suggestions = [];
+  const expenseRate = (totals.expense / totals.income) * 100;
+  const savingsRate = (totals.balance / totals.income) * 100;
+
+  if (totals.expense > totals.income) {
+    suggestions.push({
+      level: "danger",
+      title: "Spending is over your income",
+      message: "You spent " + formatMoney(totals.expense - totals.income) +
+        " more than your income. Pause non-essential purchases and set a weekly spending limit."
+    });
+  } else if (expenseRate >= 80) {
+    suggestions.push({
+      level: "warning",
+      title: "Your spending is high",
+      message: "Expenses use " + expenseRate.toFixed(0) +
+        "% of your income. Try to keep at least 20% for savings."
+    });
+  } else if (expenseRate >= 60) {
+    suggestions.push({
+      level: "warning",
+      title: "Watch your spending",
+      message: "Expenses use " + expenseRate.toFixed(0) +
+        "% of your income. Review optional purchases before adding new expenses."
+    });
+  } else {
+    suggestions.push({
+      level: "success",
+      title: "Spending is under control",
+      message: "You are using " + expenseRate.toFixed(0) +
+        "% of your income and still have " + formatMoney(Math.max(totals.balance, 0)) + " available."
+    });
+  }
+
+  const categoryEntries = Object.keys(totals.categoryTotals).map(function(category) {
+    return { category: category, amount: totals.categoryTotals[category] };
+  }).sort(function(a, b) {
+    return b.amount - a.amount;
+  });
+
+  if (categoryEntries.length > 0 && totals.expense > 0) {
+    const top = categoryEntries[0];
+    const categoryRate = (top.amount / totals.expense) * 100;
+    const suggestedLimit = totals.expense * 0.3;
+
+    if (categoryRate >= 40) {
+      suggestions.push({
+        level: "warning",
+        title: top.category + " is your highest expense",
+        message: "It makes up " + categoryRate.toFixed(0) + "% of all spending. Try reducing it by " +
+          formatMoney(Math.max(top.amount - suggestedLimit, 0)) + " to bring it closer to 30%."
+      });
+    } else {
+      suggestions.push({
+        level: "success",
+        title: "Spending is well distributed",
+        message: "Your largest category is " + top.category + " at " +
+          categoryRate.toFixed(0) + "% of total expenses."
+      });
+    }
+  }
+
+  if (savingsRate >= 20) {
+    suggestions.push({
+      level: "success",
+      title: "Good savings rate",
+      message: "You are saving " + savingsRate.toFixed(0) +
+        "% of your income. Consider moving part of it into your savings goal."
+    });
+  } else if (totals.balance > 0) {
+    suggestions.push({
+      level: "warning",
+      title: "Build your savings",
+      message: "Your savings rate is " + savingsRate.toFixed(0) +
+        "%. Aim for 20% by saving another " + formatMoney((totals.income * 0.2) - totals.balance) + "."
+    });
+  }
+
+  return suggestions;
 }
 
 function renderHistory(transactions) {
@@ -348,7 +705,9 @@ function setText(id, value) {
 }
 
 function formatMoney(value) {
-  return "RM " + Number(value).toFixed(2);
+  const currency = getSettings().currency;
+  const symbols = { RM: "RM", USD: "$", SGD: "S$" };
+  return symbols[currency] + " " + Number(value).toFixed(2);
 }
 
 function capitalize(value) {
@@ -364,4 +723,6 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-document.addEventListener("DOMContentLoaded", loadDashboard);
+document.addEventListener("DOMContentLoaded", function() {
+  applySettings();
+});
