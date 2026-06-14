@@ -1,6 +1,8 @@
 const STORAGE_KEY = "budgetmate_transactions";
 const GOALS_KEY = "budgetmate_goals";
 const SETTINGS_KEY = "budgetmate_settings";
+const USERS_KEY = "budgetmate_users";
+const SESSION_KEY = "budgetmate_session";
 
 const defaultSettings = {
   currency: "RM",
@@ -14,11 +16,133 @@ const starterTransactions = [
   { id: 4, type: "expense", name: "Notebook", amount: 32, category: "Education", date: "2026-05-15" }
 ];
 
-function enterApp() {
+function enterApp(user) {
+  user = user || getCurrentUser();
+
+  if (!user) {
+    return;
+  }
+
   document.getElementById("home").style.display = "none";
   document.getElementById("appShell").classList.remove("app-hidden");
+  setText("currentUserName", user.name);
+  setText("currentUserEmail", user.email);
+  setText("currentUserAvatar", user.name.charAt(0).toUpperCase());
+  setText("currentUserDetails", (user.age || "-") + " years | " + (user.gender || "Not set"));
+  setValue("settingsName", user.name);
+  setValue("settingsAge", user.age || "");
+  setValue("settingsGender", user.gender || "Prefer not to say");
   applySettings();
   loadDashboard();
+}
+
+function showAuthForm(type) {
+  const signingIn = type === "signin";
+  const signingUp = type === "signup";
+  document.getElementById("signInForm").classList.toggle("auth-hidden", !signingIn);
+  document.getElementById("signUpForm").classList.toggle("auth-hidden", !signingUp);
+  document.getElementById("forgotPasswordForm").classList.toggle("auth-hidden", type !== "forgot");
+  document.getElementById("signInTab").classList.toggle("active", signingIn);
+  document.getElementById("signUpTab").classList.toggle("active", signingUp);
+  showAuthMessage("", "");
+}
+
+function signUp(event) {
+  event.preventDefault();
+  const name = getValue("signUpName");
+  const email = getValue("signUpEmail").toLowerCase();
+  const age = Number(getValue("signUpAge"));
+  const gender = getValue("signUpGender");
+  const password = getValue("signUpPassword");
+  const users = getUsers();
+
+  if (!name || !email || age < 13 || age > 100 || !gender || password.length < 4) {
+    showAuthMessage("Complete all fields. Age must be 13-100 and password at least 4 characters.", "error");
+    return;
+  }
+
+  if (users.some(function(user) { return user.email === email; })) {
+    showAuthMessage("An account with this email already exists.", "error");
+    return;
+  }
+
+  const user = {
+    id: String(Date.now()),
+    name: name,
+    email: email,
+    age: age,
+    gender: gender,
+    password: password
+  };
+  users.push(user);
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  localStorage.setItem(SESSION_KEY, user.id);
+  enterApp(user);
+}
+
+function signIn(event) {
+  event.preventDefault();
+  const email = getValue("signInEmail").toLowerCase();
+  const password = getValue("signInPassword");
+  const user = getUsers().find(function(item) {
+    return item.email === email && item.password === password;
+  });
+
+  if (!user) {
+    showAuthMessage("Email or password is incorrect.", "error");
+    return;
+  }
+
+  localStorage.setItem(SESSION_KEY, user.id);
+  enterApp(user);
+}
+
+function resetPassword(event) {
+  event.preventDefault();
+  const email = getValue("resetEmail").toLowerCase();
+  const password = getValue("resetPassword");
+  const users = getUsers();
+  const user = users.find(function(item) {
+    return item.email === email;
+  });
+
+  if (!user) {
+    showAuthMessage("No local account was found for this email.", "error");
+    return;
+  }
+
+  if (password.length < 4) {
+    showAuthMessage("New password must have at least 4 characters.", "error");
+    return;
+  }
+
+  user.password = password;
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  showAuthForm("signin");
+  setValue("signInEmail", email);
+  showAuthMessage("Password reset. You can sign in now.", "success");
+}
+
+function logout() {
+  localStorage.removeItem(SESSION_KEY);
+  document.getElementById("appShell").classList.add("app-hidden");
+  document.getElementById("home").style.display = "flex";
+  setValue("signInPassword", "");
+  showAuthForm("signin");
+}
+
+function getUsers() {
+  try {
+    return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function showAuthMessage(text, status) {
+  const message = document.getElementById("authMessage");
+  message.textContent = text;
+  message.className = "auth-message " + status;
 }
 
 function getSettings() {
@@ -30,7 +154,10 @@ function getSettings() {
 }
 
 function getCurrentUser() {
-  return { id: "local-user" };
+  const sessionId = localStorage.getItem(SESSION_KEY);
+  return getUsers().find(function(user) {
+    return user.id === sessionId;
+  }) || null;
 }
 
 function applySettings() {
@@ -41,7 +168,67 @@ function applySettings() {
 }
 
 function saveProfileSettings() {
-  return;
+  const user = getCurrentUser();
+  const name = getValue("settingsName");
+  const age = Number(getValue("settingsAge"));
+  const gender = getValue("settingsGender");
+
+  if (!user || !name || age < 13 || age > 100 || !gender) {
+    showFormStatus("profileMessage", "Enter a valid name, age from 13 to 100, and gender.", "error");
+    return;
+  }
+
+  const users = getUsers();
+  const savedUser = users.find(function(item) {
+    return item.id === user.id;
+  });
+
+  if (savedUser) {
+    savedUser.name = name;
+    savedUser.age = age;
+    savedUser.gender = gender;
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    setText("currentUserName", name);
+    setText("currentUserAvatar", name.charAt(0).toUpperCase());
+    setText("currentUserDetails", age + " years | " + gender);
+    showFormStatus("profileMessage", "Profile updated successfully.", "success");
+  }
+}
+
+function changePassword() {
+  const user = getCurrentUser();
+  const currentPassword = getValue("currentPassword");
+  const newPassword = getValue("newPassword");
+
+  if (!user || currentPassword !== user.password) {
+    showFormStatus("passwordMessage", "Current password is incorrect.", "error");
+    return;
+  }
+
+  if (newPassword.length < 4) {
+    showFormStatus("passwordMessage", "New password must have at least 4 characters.", "error");
+    return;
+  }
+
+  const users = getUsers();
+  const savedUser = users.find(function(item) {
+    return item.id === user.id;
+  });
+
+  savedUser.password = newPassword;
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  setValue("currentPassword", "");
+  setValue("newPassword", "");
+  showFormStatus("passwordMessage", "Password updated.", "success");
+}
+
+function showFormStatus(id, text, status) {
+  const message = document.getElementById(id);
+
+  if (message) {
+    message.textContent = text;
+    message.className = "form-message " + status;
+  }
 }
 
 function savePreferenceSettings() {
@@ -68,6 +255,14 @@ function showPage(pageId, menuItem) {
   document.getElementById(pageId).classList.add("active");
   menuItem.classList.add("active-menu");
   loadDashboard();
+}
+
+function openDashboardPage() {
+  const dashboardMenu = document.querySelector(".menu div");
+
+  if (dashboardMenu) {
+    showPage("dashboard", dashboardMenu);
+  }
 }
 
 function loadDashboard() {
@@ -306,8 +501,19 @@ function addTransaction(type) {
 
   saveTransactions(transactions);
   clearTransactionForm(type);
-  showMessage("Transaction added successfully.", "success");
   loadDashboard();
+  const updatedTotals = calculateTotals(getTransactions());
+  const updatedAmount = isIncome ? updatedTotals.income : updatedTotals.expense;
+  showMessage(
+    (isIncome ? "Income" : "Expense") + " added. Chart updated to " +
+    formatMoney(updatedAmount) + ".",
+    "success"
+  );
+  setText(
+    "chartUpdateStatus",
+    (isIncome ? "Income" : "Expense") + ": " + formatMoney(updatedAmount)
+  );
+  openDashboardPage();
 }
 
 function deleteTransaction(id) {
@@ -328,13 +534,22 @@ function calculateTotals(transactions) {
   transactions.forEach(function(item) {
     const amount = Number(item.amount);
 
+    if (!Number.isFinite(amount) || amount < 0) {
+      return;
+    }
+
     if (item.type === "income") {
       income += amount;
       return;
     }
 
+    if (item.type !== "expense") {
+      return;
+    }
+
     expense += amount;
-    categoryTotals[item.category] = (categoryTotals[item.category] || 0) + amount;
+    const category = item.category || "Other";
+    categoryTotals[category] = (categoryTotals[category] || 0) + amount;
   });
 
   let topCategory = "None";
@@ -371,9 +586,12 @@ function renderSummaryChart(totals) {
   const maxValue = Math.max.apply(null, values.map(function(item) {
     return item.value;
   })) || 1;
+  const chartScale = getChartScale(maxValue);
 
   chart.innerHTML = values.map(function(item) {
-    const height = Math.max((item.value / maxValue) * 190, 10);
+    const height = item.value > 0
+      ? Math.max((item.value / chartScale) * 190, 10)
+      : 0;
 
     return `
       <div class="bar-item">
@@ -421,6 +639,20 @@ function renderCategoryChart(categoryTotals) {
       </div>
     `;
   }).join("");
+}
+
+function getChartScale(maxValue) {
+  const scaleSteps = [100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
+  const nextStep = scaleSteps.find(function(step) {
+    return step > maxValue;
+  });
+
+  if (nextStep) {
+    return nextStep;
+  }
+
+  const magnitude = Math.pow(10, Math.floor(Math.log10(maxValue)));
+  return Math.ceil((maxValue + 1) / magnitude) * magnitude;
 }
 
 function renderSmartSuggestions(totals) {
@@ -607,10 +839,16 @@ function filterHistoryTransactions(transactions) {
 
     const startDate = new Date(today);
 
-    if (range === "week") {
+    if (range === "today") {
+      startDate.setHours(0, 0, 0, 0);
+    } else if (range === "week") {
       startDate.setDate(today.getDate() - 6);
     } else if (range === "month") {
       startDate.setMonth(today.getMonth() - 1);
+    } else if (range === "3months") {
+      startDate.setMonth(today.getMonth() - 3);
+    } else if (range === "6months") {
+      startDate.setMonth(today.getMonth() - 6);
     } else if (range === "year") {
       startDate.setFullYear(today.getFullYear() - 1);
     }
@@ -645,19 +883,138 @@ function renderHistorySummary(transactions) {
   `;
 }
 
-function getTransactions() {
-  const saved = localStorage.getItem(STORAGE_KEY);
+function getFilteredHistory() {
+  return filterHistoryTransactions(getTransactions());
+}
 
-  if (!saved) {
-    saveTransactions(starterTransactions);
+function exportHistoryCsv() {
+  const transactions = getFilteredHistory();
+
+  if (transactions.length === 0) {
+    return;
+  }
+
+  const rows = [["Type", "Name", "Category", "Date", "Amount"]].concat(
+    transactions.map(function(item) {
+      return [item.type, item.name, item.category, item.date, Number(item.amount).toFixed(2)];
+    })
+  );
+  const csv = rows.map(function(row) {
+    return row.map(function(value) {
+      return '"' + String(value).replace(/"/g, '""') + '"';
+    }).join(",");
+  }).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "budgetmate-history-" + new Date().toISOString().slice(0, 10) + ".csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function printHistoryReport() {
+  const transactions = getFilteredHistory();
+  const totals = calculateTotals(transactions);
+  const user = getCurrentUser();
+  const report = window.open("", "_blank");
+
+  if (!report) {
+    return;
+  }
+
+  const rows = transactions.map(function(item) {
+    return "<tr><td>" + escapeHtml(capitalize(item.type)) + "</td><td>" +
+      escapeHtml(item.name) + "</td><td>" + escapeHtml(item.category) +
+      "</td><td>" + escapeHtml(item.date) + "</td><td>" +
+      formatMoney(item.amount) + "</td></tr>";
+  }).join("");
+
+  report.document.write(
+    "<!DOCTYPE html><html><head><title>BudgetMate Report</title>" +
+    "<style>body{font-family:Arial;padding:35px;color:#1f2937}h1{color:#223161}" +
+    ".summary{display:flex;gap:15px;margin:22px 0}.summary div{padding:14px 20px;background:#eef2ff;border-radius:10px}" +
+    "table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #ddd;text-align:left}</style>" +
+    "</head><body><h1>BudgetMate Financial Report</h1><p>" +
+    escapeHtml(user ? user.name : "User") + " | Generated " + new Date().toLocaleDateString() +
+    "</p><div class='summary'><div>Income<br><strong>" + formatMoney(totals.income) +
+    "</strong></div><div>Expense<br><strong>" + formatMoney(totals.expense) +
+    "</strong></div><div>Balance<br><strong>" + formatMoney(totals.balance) +
+    "</strong></div></div><table><thead><tr><th>Type</th><th>Name</th><th>Category</th>" +
+    "<th>Date</th><th>Amount</th></tr></thead><tbody>" + rows +
+    "</tbody></table><script>window.onload=function(){window.print();}<\/script></body></html>"
+  );
+  report.document.close();
+}
+
+function getTransactions() {
+  const user = getCurrentUser();
+
+  if (!user) {
+    return [];
+  }
+
+  let allTransactions = {};
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (Array.isArray(saved)) {
+      allTransactions[user.id] = saved;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
+      return saved;
+    }
+    allTransactions = saved || {};
+  } catch (error) {
+    allTransactions = {};
+  }
+
+  if (!Array.isArray(allTransactions[user.id])) {
+    allTransactions[user.id] = starterTransactions.slice();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
     return starterTransactions.slice();
   }
 
-  return JSON.parse(saved);
+  const cleanedTransactions = allTransactions[user.id].filter(function(item) {
+    return item &&
+      (item.type === "income" || item.type === "expense") &&
+      Number.isFinite(Number(item.amount));
+  }).map(function(item) {
+    return {
+      id: Number(item.id) || Date.now() + Math.random(),
+      type: item.type,
+      name: String(item.name || "Transaction"),
+      amount: Number(item.amount),
+      category: String(item.category || (item.type === "income" ? "Income" : "Other")),
+      date: String(item.date || "")
+    };
+  });
+
+  if (cleanedTransactions.length !== allTransactions[user.id].length) {
+    allTransactions[user.id] = cleanedTransactions;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
+  }
+
+  return cleanedTransactions;
 }
 
 function saveTransactions(transactions) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+  const user = getCurrentUser();
+
+  if (!user) {
+    return;
+  }
+
+  let allTransactions = {};
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    allTransactions = Array.isArray(saved) ? {} : (saved || {});
+  } catch (error) {
+    allTransactions = {};
+  }
+
+  allTransactions[user.id] = transactions;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
 }
 
 function clearTransactionForm(type) {
@@ -725,4 +1082,9 @@ function escapeHtml(value) {
 
 document.addEventListener("DOMContentLoaded", function() {
   applySettings();
+  const user = getCurrentUser();
+
+  if (user) {
+    enterApp(user);
+  }
 });
