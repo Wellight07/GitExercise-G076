@@ -8,17 +8,72 @@
 </head>
 <body>
   <section id="home" class="home-page">
-    <div class="home-content">
-      <p class="home-label">Personal Finance Dashboard</p>
-      <h1>BudgetMate</h1>
-      <p class="home-text">Manage your budget, view spending, and receive smart suggestions in one clean dashboard.</p>
-      <button class="enter-btn" type="button" onclick="enterApp()">Enter Dashboard</button>
+    <div class="auth-layout">
+      <div class="home-content">
+        <p class="home-label">Personal Finance Dashboard</p>
+        <h1>BudgetMate</h1>
+        <p class="home-text">Manage your budget, view spending, and receive smart suggestions in one clean dashboard.</p>
+      </div>
+
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <button id="signInTab" class="auth-tab active" type="button" onclick="showAuthForm('signin')">Sign In</button>
+          <button id="signUpTab" class="auth-tab" type="button" onclick="showAuthForm('signup')">Sign Up</button>
+        </div>
+
+        <form id="signInForm" class="auth-form" onsubmit="signIn(event)">
+          <h2>Welcome Back</h2>
+          <p>Sign in to view your personal budget.</p>
+          <input id="signInEmail" type="email" placeholder="Email address" required>
+          <input id="signInPassword" type="password" placeholder="Password" required>
+          <button class="auth-submit" type="submit">Sign In</button>
+          <button class="text-btn" type="button" onclick="showAuthForm('forgot')">Forgot password?</button>
+        </form>
+
+        <form id="signUpForm" class="auth-form auth-hidden" onsubmit="signUp(event)">
+          <h2>Create Account</h2>
+          <p>Your account is stored locally in this browser.</p>
+          <input id="signUpName" type="text" placeholder="Full name" required>
+          <input id="signUpEmail" type="email" placeholder="Email address" required>
+          <div class="auth-row">
+            <input id="signUpAge" type="number" min="13" max="100" placeholder="Age" required>
+            <select id="signUpGender" required>
+              <option value="">Gender</option>
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+              <option value="Non-binary">Non-binary</option>
+              <option value="Prefer not to say">Prefer not to say</option>
+            </select>
+          </div>
+          <input id="signUpPassword" type="password" minlength="4" placeholder="Password (minimum 4 characters)" required>
+          <button class="auth-submit" type="submit">Create Account</button>
+        </form>
+
+        <form id="forgotPasswordForm" class="auth-form auth-hidden" onsubmit="resetAccountPassword(event)">
+          <h2>Reset Password</h2>
+          <p>Enter your registered full name, email, and choose a new password.</p>
+          <input id="resetName" type="text" placeholder="Registered full name" required>
+          <input id="resetEmail" type="email" placeholder="Registered email" required>
+          <input id="resetPassword" type="password" minlength="4" placeholder="New password" required>
+          <button class="auth-submit" type="submit">Reset Password</button>
+          <button class="text-btn" type="button" onclick="showAuthForm('signin')">Back to Sign In</button>
+        </form>
+        <p id="authMessage" class="auth-message"></p>
+      </div>
     </div>
   </section>
 
   <div id="appShell" class="app-shell app-hidden">
     <aside class="sidebar">
       <h2>BudgetMate</h2>
+      <div class="user-profile">
+        <div id="currentUserAvatar" class="user-avatar">U</div>
+        <div>
+          <strong id="currentUserName">User</strong>
+          <small id="currentUserEmail"></small>
+          <small id="currentUserDetails"></small>
+        </div>
+      </div>
       <nav class="menu">
         <div class="active-menu" onclick="showPage('dashboard', this)">Dashboard</div>
         <div onclick="showPage('add', this)">Add</div>
@@ -27,6 +82,7 @@
         <div onclick="showPage('history', this)">History</div>
         <div onclick="showPage('goals', this)">Goals</div>
       </nav>
+      <button class="logout-btn" type="button" onclick="logout()">Sign Out</button>
     </aside>
 
     <main class="main">
@@ -68,6 +124,7 @@
               <h3>Income vs Expense Chart</h3>
               <p>Quick view of your money flow.</p>
             </div>
+            <span id="chartUpdateStatus" class="chart-update-status">Live</span>
           </div>
           <div class="bar-chart" id="summaryChart"></div>
         </section>
@@ -109,6 +166,18 @@
               <option>Transport</option>
               <option>Shopping</option>
               <option>Education</option>
+              <option>Housing</option>
+              <option>Utilities</option>
+              <option>Healthcare</option>
+              <option>Entertainment</option>
+              <option>Groceries</option>
+              <option>Phone & Internet</option>
+              <option>Insurance</option>
+              <option>Personal Care</option>
+              <option>Travel</option>
+              <option>Gifts & Donations</option>
+              <option>Subscriptions</option>
+              <option>Other</option>
             </select>
             <button class="primary-btn danger-btn" onclick="addTransaction('expense')">Add Expense</button>
           </section>
@@ -183,7 +252,17 @@
             <input id="settingsName" type="text" placeholder="Enter your name">
             <label for="settingsStudentId">Student ID</label>
             <input id="settingsStudentId" type="text" placeholder="Enter student ID">
+            <label for="settingsAge">Age</label>
+            <input id="settingsAge" type="number" min="13" max="100" placeholder="Enter your age">
+            <label for="settingsGender">Gender</label>
+            <select id="settingsGender">
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+              <option value="Non-binary">Non-binary</option>
+              <option value="Prefer not to say">Prefer not to say</option>
+            </select>
             <button class="primary-btn" type="button" onclick="saveProfileSettings()">Save Profile</button>
+            <p id="profileMessage" class="form-message"></p>
           </section>
 
           <section class="panel form-panel">
@@ -200,6 +279,20 @@
             </div>
           </section>
         </div>
+
+        <section class="panel security-panel">
+          <div>
+            <span class="section-kicker">Account Security</span>
+            <h3>Change Password</h3>
+            <p>Use at least four characters for this local demo account.</p>
+          </div>
+          <div class="security-form">
+            <input id="currentPassword" type="password" placeholder="Current password">
+            <input id="newPassword" type="password" minlength="4" placeholder="New password">
+            <button class="primary-btn" type="button" onclick="changePassword()">Update Password</button>
+          </div>
+          <p id="passwordMessage" class="form-message"></p>
+        </section>
       </section>
 
       <section id="history" class="page">
@@ -208,10 +301,24 @@
             <h2>History</h2>
             <p>Review transaction records.</p>
           </div>
-          <input placeholder="Search history...">
+          <div class="history-tools">
+            <select id="historyRange" onchange="loadDashboard()">
+              <option value="today">Today</option>
+              <option value="week">Last 7 Days</option>
+              <option value="month">Last 1 Month</option>
+              <option value="3months">Last 3 Months</option>
+              <option value="6months">Last 6 Months</option>
+              <option value="year">Last 1 Year</option>
+              <option value="all" selected>All History</option>
+            </select>
+            <input id="historySearch" type="search" placeholder="Search history..." oninput="loadDashboard()">
+            <button class="tool-btn" type="button" onclick="exportHistoryCsv()">Export CSV</button>
+            <button class="tool-btn secondary" type="button" onclick="printHistoryReport()">Print Report</button>
+          </div>
         </div>
 
         <section class="panel">
+          <div id="historySummary" class="history-summary"></div>
           <table>
             <thead>
               <tr>

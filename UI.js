@@ -1,36 +1,160 @@
-const STORAGE_KEY = "budgetmate_transactions";
-const GOALS_KEY = "budgetmate_goals";
-const SETTINGS_KEY = "budgetmate_settings";
-
 const defaultSettings = {
   currency: "RM",
   darkMode: false
 };
 
-const starterTransactions = [
-  { id: 1, type: "income", name: "Allowance", amount: 500, category: "Income", date: "2026-05-13" },
-  { id: 2, type: "expense", name: "Lunch", amount: 25, category: "Food", date: "2026-05-13" },
-  { id: 3, type: "expense", name: "Train", amount: 18, category: "Transport", date: "2026-05-14" },
-  { id: 4, type: "expense", name: "Notebook", amount: 32, category: "Education", date: "2026-05-15" }
-];
+let currentUser = null;
+let currentSettings = Object.assign({}, defaultSettings);
+let currentTransactions = [];
+let currentGoals = [];
 
-function enterApp() {
+async function apiRequest(url, options) {
+  const response = await fetch(url, Object.assign({
+    headers: {
+      "Content-Type": "application/json"
+    }
+  }, options || {}));
+  const data = await response.json().catch(function() {
+    return {};
+  });
+
+  if (!response.ok) {
+    throw new Error(data.error || "Request failed.");
+  }
+
+  return data;
+}
+
+async function enterApp(user, settings) {
+  user = user || getCurrentUser();
+
+  if (!user) {
+    return;
+  }
+
+  currentUser = user;
+  currentSettings = Object.assign({}, defaultSettings, settings || currentSettings);
   document.getElementById("home").style.display = "none";
   document.getElementById("appShell").classList.remove("app-hidden");
+  setText("currentUserName", user.name);
+  setText("currentUserEmail", user.email);
+  setText("currentUserAvatar", user.name.charAt(0).toUpperCase());
+  setText("currentUserDetails", (user.age || "-") + " years | " + (user.gender || "Not set"));
+  setValue("settingsName", user.name);
+  setValue("settingsStudentId", user.studentId || "");
+  setValue("settingsAge", user.age || "");
+  setValue("settingsGender", user.gender || "Prefer not to say");
   applySettings();
+  await refreshUserData();
   loadDashboard();
 }
 
-function getSettings() {
+function showAuthForm(type) {
+  const signingIn = type === "signin";
+  const signingUp = type === "signup";
+  document.getElementById("signInForm").classList.toggle("auth-hidden", !signingIn);
+  document.getElementById("signUpForm").classList.toggle("auth-hidden", !signingUp);
+  document.getElementById("forgotPasswordForm").classList.toggle("auth-hidden", type !== "forgot");
+  document.getElementById("signInTab").classList.toggle("active", signingIn);
+  document.getElementById("signUpTab").classList.toggle("active", signingUp);
+  showAuthMessage("", "");
+}
+
+async function signUp(event) {
+  event.preventDefault();
+  const name = getValue("signUpName");
+  const email = getValue("signUpEmail").toLowerCase();
+  const age = Number(getValue("signUpAge"));
+  const gender = getValue("signUpGender");
+  const password = getValue("signUpPassword");
+
+  if (!name || !email || age < 13 || age > 100 || !gender || password.length < 4) {
+    showAuthMessage("Complete all fields. Age must be 13-100 and password at least 4 characters.", "error");
+    return;
+  }
+
   try {
-    return Object.assign({}, defaultSettings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
+    const data = await apiRequest("/signup", {
+      method: "POST",
+      body: JSON.stringify({ name: name, email: email, age: age, gender: gender, password: password })
+    });
+    await enterApp(data.user, data.settings);
   } catch (error) {
-    return Object.assign({}, defaultSettings);
+    showAuthMessage(error.message, "error");
   }
 }
 
+async function signIn(event) {
+  event.preventDefault();
+  const email = getValue("signInEmail").toLowerCase();
+  const password = getValue("signInPassword");
+
+  try {
+    const data = await apiRequest("/signin", {
+      method: "POST",
+      body: JSON.stringify({ email: email, password: password })
+    });
+    await enterApp(data.user, data.settings);
+  } catch (error) {
+    showAuthMessage(error.message, "error");
+  }
+}
+
+async function resetAccountPassword(event) {
+  event.preventDefault();
+  const name = getValue("resetName");
+  const email = getValue("resetEmail").toLowerCase();
+  const password = getValue("resetPassword");
+
+  if (!name) {
+    showAuthMessage("Registered full name is required.", "error");
+    return;
+  }
+
+  if (password.length < 4) {
+    showAuthMessage("New password must have at least 4 characters.", "error");
+    return;
+  }
+
+  try {
+    const data = await apiRequest("/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ name: name, email: email, password: password })
+    });
+    showAuthForm("signin");
+    setValue("signInEmail", email);
+    showAuthMessage(data.message, "success");
+  } catch (error) {
+    showAuthMessage(error.message, "error");
+  }
+}
+
+function logout() {
+  currentUser = null;
+  currentTransactions = [];
+  currentGoals = [];
+  document.getElementById("appShell").classList.add("app-hidden");
+  document.getElementById("home").style.display = "flex";
+  setValue("signInPassword", "");
+  showAuthForm("signin");
+}
+
+function getUsers() {
+  return [];
+}
+
+function showAuthMessage(text, status) {
+  const message = document.getElementById("authMessage");
+  message.textContent = text;
+  message.className = "auth-message " + status;
+}
+
+function getSettings() {
+  return Object.assign({}, defaultSettings, currentSettings);
+}
+
 function getCurrentUser() {
-  return { id: "local-user" };
+  return currentUser;
 }
 
 function applySettings() {
@@ -40,17 +164,90 @@ function applySettings() {
   document.body.classList.toggle("dark-mode", settings.darkMode);
 }
 
-function saveProfileSettings() {
-  return;
+async function saveProfileSettings() {
+  const user = getCurrentUser();
+  const name = getValue("settingsName");
+  const studentId = getValue("settingsStudentId");
+  const age = Number(getValue("settingsAge"));
+  const gender = getValue("settingsGender");
+
+  if (!user || !name || age < 13 || age > 100 || !gender) {
+    showFormStatus("profileMessage", "Enter a valid name, age from 13 to 100, and gender.", "error");
+    return;
+  }
+
+  try {
+    const data = await apiRequest("/profile/" + user.id, {
+      method: "PUT",
+      body: JSON.stringify({ name: name, age: age, gender: gender, studentId: studentId })
+    });
+    currentUser = data.user;
+    setText("currentUserName", currentUser.name);
+    setText("currentUserAvatar", currentUser.name.charAt(0).toUpperCase());
+    setText("currentUserDetails", currentUser.age + " years | " + currentUser.gender);
+    showFormStatus("profileMessage", "Profile updated successfully.", "success");
+  } catch (error) {
+    showFormStatus("profileMessage", error.message, "error");
+  }
 }
 
-function savePreferenceSettings() {
+async function changePassword() {
+  const user = getCurrentUser();
+  const currentPassword = getValue("currentPassword");
+  const newPassword = getValue("newPassword");
+
+  if (!user) {
+    showFormStatus("passwordMessage", "Sign in before changing password.", "error");
+    return;
+  }
+
+  if (newPassword.length < 4) {
+    showFormStatus("passwordMessage", "New password must have at least 4 characters.", "error");
+    return;
+  }
+
+  try {
+    const data = await apiRequest("/change-password/" + user.id, {
+      method: "PUT",
+      body: JSON.stringify({ currentPassword: currentPassword, newPassword: newPassword })
+    });
+    setValue("currentPassword", "");
+    setValue("newPassword", "");
+    showFormStatus("passwordMessage", data.message, "success");
+  } catch (error) {
+    showFormStatus("passwordMessage", error.message, "error");
+  }
+}
+
+function showFormStatus(id, text, status) {
+  const message = document.getElementById(id);
+
+  if (message) {
+    message.textContent = text;
+    message.className = "form-message " + status;
+  }
+}
+
+async function savePreferenceSettings() {
+  const user = getCurrentUser();
   const settings = getSettings();
   settings.currency = getValue("settingsCurrency") || "RM";
   settings.darkMode = document.getElementById("settingsDarkMode").checked;
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  applySettings();
-  loadDashboard();
+
+  if (!user) {
+    return;
+  }
+
+  try {
+    currentSettings = await apiRequest("/settings/" + user.id, {
+      method: "PUT",
+      body: JSON.stringify(settings)
+    });
+    applySettings();
+    loadDashboard();
+  } catch (error) {
+    showFormStatus("profileMessage", error.message, "error");
+  }
 }
 
 function showPage(pageId, menuItem) {
@@ -68,6 +265,35 @@ function showPage(pageId, menuItem) {
   document.getElementById(pageId).classList.add("active");
   menuItem.classList.add("active-menu");
   loadDashboard();
+}
+
+function openDashboardPage() {
+  const dashboardMenu = document.querySelector(".menu div");
+
+  if (dashboardMenu) {
+    showPage("dashboard", dashboardMenu);
+  }
+}
+
+async function refreshUserData() {
+  const user = getCurrentUser();
+
+  if (!user) {
+    currentTransactions = [];
+    currentGoals = [];
+    return;
+  }
+
+  const userId = encodeURIComponent(user.id);
+  const results = await Promise.all([
+    apiRequest("/transactions?user_id=" + userId),
+    apiRequest("/goals?user_id=" + userId),
+    apiRequest("/settings/" + userId)
+  ]);
+
+  currentTransactions = results[0];
+  currentGoals = results[1];
+  currentSettings = Object.assign({}, defaultSettings, results[2]);
 }
 
 function loadDashboard() {
@@ -90,12 +316,13 @@ function loadDashboard() {
   renderGoals();
 }
 
-function createGoal() {
+async function createGoal() {
   const name = getValue("goalName");
   const target = Number(getValue("goalAmount"));
   const targetDate = getValue("goalDate");
+  const user = getCurrentUser();
 
-  if (!name || target <= 0 || !targetDate) {
+  if (!user || !name || target <= 0 || !targetDate) {
     showGoalMessage("Please enter a goal name, target amount, and target date.", "error");
     return;
   }
@@ -107,54 +334,66 @@ function createGoal() {
     return;
   }
 
-  const goals = getGoals();
-  goals.push({
-    id: Date.now(),
-    name: name,
-    target: target,
-    saved: 0,
-    targetDate: targetDate
-  });
-
-  saveGoals(goals);
-  setValue("goalName", "");
-  setValue("goalAmount", "");
-  setValue("goalDate", "");
-  showGoalMessage("Savings goal created successfully.", "success");
-  renderGoals();
+  try {
+    await apiRequest("/goals", {
+      method: "POST",
+      body: JSON.stringify({
+        user_id: user.id,
+        name: name,
+        target: target,
+        targetDate: targetDate
+      })
+    });
+    await refreshUserData();
+    setValue("goalName", "");
+    setValue("goalAmount", "");
+    setValue("goalDate", "");
+    showGoalMessage("Savings goal created successfully.", "success");
+    renderGoals();
+  } catch (error) {
+    showGoalMessage(error.message, "error");
+  }
 }
 
-function addGoalSavings(id) {
+async function addGoalSavings(id) {
   const amount = Number(getValue("goalContribution-" + id));
+  const user = getCurrentUser();
 
-  if (amount <= 0) {
+  if (!user || amount <= 0) {
     showGoalMessage("Enter an amount greater than RM 0.", "error");
     return;
   }
 
-  const goals = getGoals();
-  const goal = goals.find(function(item) {
-    return item.id === id;
-  });
+  try {
+    await apiRequest("/goals/" + id + "/savings", {
+      method: "PUT",
+      body: JSON.stringify({ user_id: user.id, amount: amount })
+    });
+    await refreshUserData();
+    showGoalMessage("Savings progress updated.", "success");
+    renderGoals();
+  } catch (error) {
+    showGoalMessage(error.message, "error");
+  }
+}
 
-  if (!goal) {
+async function deleteGoal(id) {
+  const user = getCurrentUser();
+
+  if (!user) {
     return;
   }
 
-  goal.saved = Math.min(Number(goal.saved) + amount, Number(goal.target));
-  saveGoals(goals);
-  showGoalMessage("Savings progress updated.", "success");
-  renderGoals();
-}
-
-function deleteGoal(id) {
-  const goals = getGoals().filter(function(goal) {
-    return goal.id !== id;
-  });
-
-  saveGoals(goals);
-  showGoalMessage("Goal deleted.", "success");
-  renderGoals();
+  try {
+    await apiRequest("/goals/" + id + "?user_id=" + encodeURIComponent(user.id), {
+      method: "DELETE"
+    });
+    await refreshUserData();
+    showGoalMessage("Goal deleted.", "success");
+    renderGoals();
+  } catch (error) {
+    showGoalMessage(error.message, "error");
+  }
 }
 
 function renderGoals() {
@@ -238,37 +477,11 @@ function getGoalDeadline(targetDate, completed) {
 }
 
 function getGoals() {
-  const user = getCurrentUser();
-
-  if (!user) {
-    return [];
-  }
-
-  try {
-    const allGoals = JSON.parse(localStorage.getItem(GOALS_KEY)) || {};
-    return allGoals[user.id] || [];
-  } catch (error) {
-    return [];
-  }
+  return currentGoals.slice();
 }
 
 function saveGoals(goals) {
-  const user = getCurrentUser();
-
-  if (!user) {
-    return;
-  }
-
-  let allGoals = {};
-
-  try {
-    allGoals = JSON.parse(localStorage.getItem(GOALS_KEY)) || {};
-  } catch (error) {
-    allGoals = {};
-  }
-
-  allGoals[user.id] = goals;
-  localStorage.setItem(GOALS_KEY, JSON.stringify(allGoals));
+  currentGoals = goals.slice();
 }
 
 function showGoalMessage(text, status) {
@@ -282,42 +495,68 @@ function showGoalMessage(text, status) {
   message.className = "form-message " + status;
 }
 
-function addTransaction(type) {
+async function addTransaction(type) {
   const isIncome = type === "income";
   const name = getValue(isIncome ? "incomeName" : "expenseName");
   const amount = Number(getValue(isIncome ? "incomeAmount" : "expenseAmount"));
   const date = getValue(isIncome ? "incomeDate" : "expenseDate");
   const category = isIncome ? "Income" : getValue("expenseCategory");
+  const user = getCurrentUser();
 
-  if (!name || !amount || !date) {
+  if (!user || !name || !amount || !date) {
     showMessage("Please fill in name, amount, and date.", "error");
     return;
   }
 
-  const transactions = getTransactions();
-  transactions.push({
-    id: Date.now(),
-    type: type,
-    name: name,
-    amount: amount,
-    category: category,
-    date: date
-  });
-
-  saveTransactions(transactions);
-  clearTransactionForm(type);
-  showMessage("Transaction added successfully.", "success");
-  loadDashboard();
+  try {
+    await apiRequest("/add", {
+      method: "POST",
+      body: JSON.stringify({
+        user_id: user.id,
+        type: type,
+        name: name,
+        amount: amount,
+        category: category,
+        date: date
+      })
+    });
+    await refreshUserData();
+    clearTransactionForm(type);
+    loadDashboard();
+    const updatedTotals = calculateTotals(getTransactions());
+    const updatedAmount = isIncome ? updatedTotals.income : updatedTotals.expense;
+    showMessage(
+      (isIncome ? "Income" : "Expense") + " added. Chart updated to " +
+      formatMoney(updatedAmount) + ".",
+      "success"
+    );
+    setText(
+      "chartUpdateStatus",
+      (isIncome ? "Income" : "Expense") + ": " + formatMoney(updatedAmount)
+    );
+    openDashboardPage();
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
 }
 
-function deleteTransaction(id) {
-  const transactions = getTransactions().filter(function(item) {
-    return item.id !== id;
-  });
+async function deleteTransaction(id) {
+  const user = getCurrentUser();
 
-  saveTransactions(transactions);
-  showMessage("Transaction deleted.", "success");
-  loadDashboard();
+  if (!user) {
+    return;
+  }
+
+  try {
+    await apiRequest("/delete/" + id + "?user_id=" + encodeURIComponent(user.id), {
+      method: "DELETE"
+    });
+    await refreshUserData();
+    showMessage("Transaction deleted.", "success");
+    loadDashboard();
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
 }
 
 function calculateTotals(transactions) {
@@ -328,13 +567,22 @@ function calculateTotals(transactions) {
   transactions.forEach(function(item) {
     const amount = Number(item.amount);
 
+    if (!Number.isFinite(amount) || amount < 0) {
+      return;
+    }
+
     if (item.type === "income") {
       income += amount;
       return;
     }
 
+    if (item.type !== "expense") {
+      return;
+    }
+
     expense += amount;
-    categoryTotals[item.category] = (categoryTotals[item.category] || 0) + amount;
+    const category = item.category || "Other";
+    categoryTotals[category] = (categoryTotals[category] || 0) + amount;
   });
 
   let topCategory = "None";
@@ -371,9 +619,12 @@ function renderSummaryChart(totals) {
   const maxValue = Math.max.apply(null, values.map(function(item) {
     return item.value;
   })) || 1;
+  const chartScale = getChartScale(maxValue);
 
   chart.innerHTML = values.map(function(item) {
-    const height = Math.max((item.value / maxValue) * 190, 10);
+    const height = item.value > 0
+      ? Math.max((item.value / chartScale) * 190, 10)
+      : 0;
 
     return `
       <div class="bar-item">
@@ -423,6 +674,20 @@ function renderCategoryChart(categoryTotals) {
   }).join("");
 }
 
+function getChartScale(maxValue) {
+  const scaleSteps = [100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
+  const nextStep = scaleSteps.find(function(step) {
+    return step > maxValue;
+  });
+
+  if (nextStep) {
+    return nextStep;
+  }
+
+  const magnitude = Math.pow(10, Math.floor(Math.log10(maxValue)));
+  return Math.ceil((maxValue + 1) / magnitude) * magnitude;
+}
+
 function renderSmartSuggestions(totals) {
   const list = document.getElementById("adviceList");
   const status = document.getElementById("adviceStatus");
@@ -431,7 +696,34 @@ function renderSmartSuggestions(totals) {
     return;
   }
 
-  const suggestions = buildSmartSuggestions(totals);
+  showSmartSuggestions(buildSmartSuggestions(totals));
+
+  const user = getCurrentUser();
+
+  if (!user) {
+    return;
+  }
+
+  apiRequest(
+    "/smart-suggestions?user_id=" + encodeURIComponent(user.id) +
+    "&currency=" + encodeURIComponent(getSettings().currency)
+  ).then(function(data) {
+    if (data.suggestions && data.suggestions.length > 0) {
+      showSmartSuggestions(data.suggestions);
+    }
+  }).catch(function() {
+    showSmartSuggestions(buildSmartSuggestions(totals));
+  });
+}
+
+function showSmartSuggestions(suggestions) {
+  const list = document.getElementById("adviceList");
+  const status = document.getElementById("adviceStatus");
+
+  if (!list || !status) {
+    return;
+  }
+
   const priority = suggestions.some(function(item) {
     return item.level === "danger";
   }) ? "danger" : suggestions.some(function(item) {
@@ -607,10 +899,16 @@ function filterHistoryTransactions(transactions) {
 
     const startDate = new Date(today);
 
-    if (range === "week") {
+    if (range === "today") {
+      startDate.setHours(0, 0, 0, 0);
+    } else if (range === "week") {
       startDate.setDate(today.getDate() - 6);
     } else if (range === "month") {
       startDate.setMonth(today.getMonth() - 1);
+    } else if (range === "3months") {
+      startDate.setMonth(today.getMonth() - 3);
+    } else if (range === "6months") {
+      startDate.setMonth(today.getMonth() - 6);
     } else if (range === "year") {
       startDate.setFullYear(today.getFullYear() - 1);
     }
@@ -645,19 +943,89 @@ function renderHistorySummary(transactions) {
   `;
 }
 
-function getTransactions() {
-  const saved = localStorage.getItem(STORAGE_KEY);
+function getFilteredHistory() {
+  return filterHistoryTransactions(getTransactions());
+}
 
-  if (!saved) {
-    saveTransactions(starterTransactions);
-    return starterTransactions.slice();
+function exportHistoryCsv() {
+  const transactions = getFilteredHistory();
+
+  if (transactions.length === 0) {
+    return;
   }
 
-  return JSON.parse(saved);
+  const rows = [["Type", "Name", "Category", "Date", "Amount"]].concat(
+    transactions.map(function(item) {
+      return [item.type, item.name, item.category, item.date, Number(item.amount).toFixed(2)];
+    })
+  );
+  const csv = rows.map(function(row) {
+    return row.map(function(value) {
+      return '"' + String(value).replace(/"/g, '""') + '"';
+    }).join(",");
+  }).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "budgetmate-history-" + new Date().toISOString().slice(0, 10) + ".csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function printHistoryReport() {
+  const transactions = getFilteredHistory();
+  const totals = calculateTotals(transactions);
+  const user = getCurrentUser();
+  const report = window.open("", "_blank");
+
+  if (!report) {
+    return;
+  }
+
+  const rows = transactions.map(function(item) {
+    return "<tr><td>" + escapeHtml(capitalize(item.type)) + "</td><td>" +
+      escapeHtml(item.name) + "</td><td>" + escapeHtml(item.category) +
+      "</td><td>" + escapeHtml(item.date) + "</td><td>" +
+      formatMoney(item.amount) + "</td></tr>";
+  }).join("");
+
+  report.document.write(
+    "<!DOCTYPE html><html><head><title>BudgetMate Report</title>" +
+    "<style>body{font-family:Arial;padding:35px;color:#1f2937}h1{color:#223161}" +
+    ".summary{display:flex;gap:15px;margin:22px 0}.summary div{padding:14px 20px;background:#eef2ff;border-radius:10px}" +
+    "table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #ddd;text-align:left}</style>" +
+    "</head><body><h1>BudgetMate Financial Report</h1><p>" +
+    escapeHtml(user ? user.name : "User") + " | Generated " + new Date().toLocaleDateString() +
+    "</p><div class='summary'><div>Income<br><strong>" + formatMoney(totals.income) +
+    "</strong></div><div>Expense<br><strong>" + formatMoney(totals.expense) +
+    "</strong></div><div>Balance<br><strong>" + formatMoney(totals.balance) +
+    "</strong></div></div><table><thead><tr><th>Type</th><th>Name</th><th>Category</th>" +
+    "<th>Date</th><th>Amount</th></tr></thead><tbody>" + rows +
+    "</tbody></table><script>window.onload=function(){window.print();}<\/script></body></html>"
+  );
+  report.document.close();
+}
+
+function getTransactions() {
+  return currentTransactions.filter(function(item) {
+    return item &&
+      (item.type === "income" || item.type === "expense") &&
+      Number.isFinite(Number(item.amount));
+  }).map(function(item) {
+    return {
+      id: Number(item.id) || Date.now() + Math.random(),
+      type: item.type,
+      name: String(item.name || "Transaction"),
+      amount: Number(item.amount),
+      category: String(item.category || (item.type === "income" ? "Income" : "Other")),
+      date: String(item.date || "")
+    };
+  });
 }
 
 function saveTransactions(transactions) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+  currentTransactions = transactions.slice();
 }
 
 function clearTransactionForm(type) {
@@ -725,4 +1093,9 @@ function escapeHtml(value) {
 
 document.addEventListener("DOMContentLoaded", function() {
   applySettings();
+  const user = getCurrentUser();
+
+  if (user) {
+    enterApp(user);
+  }
 });
