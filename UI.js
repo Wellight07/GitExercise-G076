@@ -1,18 +1,8 @@
-<<<<<<< HEAD
-=======
-const STORAGE_KEY = "budgetmate_transactions";
-const GOALS_KEY = "budgetmate_goals";
-const SETTINGS_KEY = "budgetmate_settings";
-const USERS_KEY = "budgetmate_users";
-const SESSION_KEY = "budgetmate_session";
-
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
 const defaultSettings = {
   currency: "RM",
   darkMode: false
 };
 
-<<<<<<< HEAD
 let currentUser = null;
 let currentSettings = Object.assign({}, defaultSettings);
 let currentTransactions = [];
@@ -36,22 +26,14 @@ async function apiRequest(url, options) {
 }
 
 async function enterApp(user, settings) {
-=======
-
-
-function enterApp(user) {
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
   user = user || getCurrentUser();
 
   if (!user) {
     return;
   }
 
-<<<<<<< HEAD
   currentUser = user;
   currentSettings = Object.assign({}, defaultSettings, settings || currentSettings);
-=======
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
   document.getElementById("home").style.display = "none";
   document.getElementById("appShell").classList.remove("app-hidden");
   setText("currentUserName", user.name);
@@ -85,145 +67,12 @@ async function signUp(event) {
   const age = Number(getValue("signUpAge"));
   const gender = getValue("signUpGender");
   const password = getValue("signUpPassword");
-<<<<<<< HEAD
-=======
-  const users = getUsers();
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
 
   if (!name || !email || age < 13 || age > 100 || !gender || password.length < 4) {
     showAuthMessage("Complete all fields. Age must be 13-100 and password at least 4 characters.", "error");
     return;
   }
 
-<<<<<<< HEAD
-=======
-  if (users.some(function(user) { return user.email === email; })) {
-    showAuthMessage("An account with this email already exists.", "error");
-    return;
-  }
-
-  const user = {
-    id: String(Date.now()),
-    name: name,
-    email: email,
-    age: age,
-    gender: gender,
-    studentId: ""
-  };
-  await setUserPassword(user, password);
-  users.push(user);
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  localStorage.setItem(SESSION_KEY, user.id);
-  enterApp(user);
-}
-
-async function signIn(event) {
-  event.preventDefault();
-  const email = getValue("signInEmail").toLowerCase();
-  const password = getValue("signInPassword");
-  const users = getUsers();
-  const user = users.find(function(item) {
-    return item.email === email;
-  });
-
-  if (!user || !(await passwordMatches(user, password))) {
-    showAuthMessage("Email or password is incorrect.", "error");
-    return;
-  }
-
-  await migrateLegacyPassword(user, password);
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  localStorage.setItem(SESSION_KEY, user.id);
-  enterApp(user);
-}
-
-async function resetPassword(event) {
-  event.preventDefault();
-  const name = getValue("resetName").toLowerCase();
-  const email = getValue("resetEmail").toLowerCase();
-  const password = getValue("resetPassword");
-  const users = getUsers();
-  const user = users.find(function(item) {
-    return item.email === email;
-  });
-
-  if (!user || user.name.toLowerCase() !== name) {
-    showAuthMessage("No matching local account was found for this name and email.", "error");
-    return;
-  }
-
-  if (password.length < 4) {
-    showAuthMessage("New password must have at least 4 characters.", "error");
-    return;
-  }
-
-  await setUserPassword(user, password);
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  showAuthForm("signin");
-  setValue("signInEmail", email);
-  showAuthMessage("Password reset. You can sign in now.", "success");
-}
-
-function logout() {
-  localStorage.removeItem(SESSION_KEY);
-  document.getElementById("appShell").classList.add("app-hidden");
-  document.getElementById("home").style.display = "flex";
-  setValue("signInPassword", "");
-  showAuthForm("signin");
-}
-
-function getUsers() {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
-  } catch (error) {
-    return [];
-  }
-}
-
-function showAuthMessage(text, status) {
-  const message = document.getElementById("authMessage");
-  message.textContent = text;
-  message.className = "auth-message " + status;
-}
-
-function generateSalt() {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes).map(function(byte) {
-    return byte.toString(16).padStart(2, "0");
-  }).join("");
-}
-
-async function hashPassword(password, salt) {
-  const data = new TextEncoder().encode(salt + password);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest)).map(function(byte) {
-    return byte.toString(16).padStart(2, "0");
-  }).join("");
-}
-
-async function setUserPassword(user, password) {
-  user.passwordSalt = generateSalt();
-  user.passwordHash = await hashPassword(password, user.passwordSalt);
-  delete user.password;
-}
-
-async function passwordMatches(user, password) {
-  if (user.passwordHash && user.passwordSalt) {
-    return await hashPassword(password, user.passwordSalt) === user.passwordHash;
-  }
-
-  return user.password === password;
-}
-
-async function migrateLegacyPassword(user, password) {
-  if (!user.passwordHash && user.password === password) {
-    await setUserPassword(user, password);
-  }
-}
-
-function getSettings() {
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
   try {
     const data = await apiRequest("/signup", {
       method: "POST",
@@ -305,14 +154,7 @@ function getSettings() {
 }
 
 function getCurrentUser() {
-<<<<<<< HEAD
   return currentUser;
-=======
-  const sessionId = localStorage.getItem(SESSION_KEY);
-  return getUsers().find(function(user) {
-    return user.id === sessionId;
-  }) || null;
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
 }
 
 function applySettings() {
@@ -322,11 +164,7 @@ function applySettings() {
   document.body.classList.toggle("dark-mode", settings.darkMode);
 }
 
-<<<<<<< HEAD
 async function saveProfileSettings() {
-=======
-function saveProfileSettings() {
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
   const user = getCurrentUser();
   const name = getValue("settingsName");
   const studentId = getValue("settingsStudentId");
@@ -338,7 +176,6 @@ function saveProfileSettings() {
     return;
   }
 
-<<<<<<< HEAD
   try {
     const data = await apiRequest("/profile/" + user.id, {
       method: "PUT",
@@ -351,59 +188,6 @@ function saveProfileSettings() {
     showFormStatus("profileMessage", "Profile updated successfully.", "success");
   } catch (error) {
     showFormStatus("profileMessage", error.message, "error");
-=======
-  const users = getUsers();
-  const savedUser = users.find(function(item) {
-    return item.id === user.id;
-  });
-
-  if (savedUser) {
-    savedUser.name = name;
-    savedUser.studentId = studentId;
-    savedUser.age = age;
-    savedUser.gender = gender;
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    setText("currentUserName", name);
-    setText("currentUserAvatar", name.charAt(0).toUpperCase());
-    setText("currentUserDetails", age + " years | " + gender);
-    showFormStatus("profileMessage", "Profile updated successfully.", "success");
-  }
-}
-
-async function changePassword() {
-  const user = getCurrentUser();
-  const currentPassword = getValue("currentPassword");
-  const newPassword = getValue("newPassword");
-
-  if (!user || !(await passwordMatches(user, currentPassword))) {
-    showFormStatus("passwordMessage", "Current password is incorrect.", "error");
-    return;
-  }
-
-  if (newPassword.length < 4) {
-    showFormStatus("passwordMessage", "New password must have at least 4 characters.", "error");
-    return;
-  }
-
-  const users = getUsers();
-  const savedUser = users.find(function(item) {
-    return item.id === user.id;
-  });
-
-  await setUserPassword(savedUser, newPassword);
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  setValue("currentPassword", "");
-  setValue("newPassword", "");
-  showFormStatus("passwordMessage", "Password updated.", "success");
-}
-
-function showFormStatus(id, text, status) {
-  const message = document.getElementById(id);
-
-  if (message) {
-    message.textContent = text;
-    message.className = "form-message " + status;
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
   }
 }
 
@@ -491,7 +275,6 @@ function openDashboardPage() {
   }
 }
 
-<<<<<<< HEAD
 async function refreshUserData() {
   const user = getCurrentUser();
 
@@ -515,11 +298,6 @@ async function refreshUserData() {
 
 function loadDashboard() {
   const transactions = getTransactions();
-=======
-async function loadDashboard() {
- const transactions =
-    await getTransactions();
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
   const totals = calculateTotals(transactions);
 
   setText("balanceValue", formatMoney(totals.balance));
@@ -535,7 +313,6 @@ async function loadDashboard() {
   renderCategoryChart(totals.categoryTotals);
   renderSmartSuggestions(totals);
   renderHistory(transactions);
-  renderDashboardSearch(transactions);
   renderGoals();
 }
 
@@ -718,7 +495,6 @@ function showGoalMessage(text, status) {
   message.className = "form-message " + status;
 }
 
-<<<<<<< HEAD
 async function addTransaction(type) {
   const isIncome = type === "income";
   const name = getValue(isIncome ? "incomeName" : "expenseName");
@@ -781,55 +557,7 @@ async function deleteTransaction(id) {
   } catch (error) {
     showMessage(error.message, "error");
   }
-=======
-function addTransaction(type) {
- async function getTransactions() {
-    const response = await fetch("/transactions");
-    return await response.json();
 }
-  }
-
-  const transactions = getTransactions();
-  transactions.push({
-    id: Date.now(),
-    type: type,
-    name: name,
-    amount: amount,
-    category: category,
-    date: date
-  });
-
-  saveTransactions(transactions);
-  clearTransactionForm(type);
-  loadDashboard();
-  const updatedTotals = calculateTotals(getTransactions());
-  const updatedAmount = isIncome ? updatedTotals.income : updatedTotals.expense;
-  showMessage(
-    (isIncome ? "Income" : "Expense") + " added. Chart updated to " +
-    formatMoney(updatedAmount) + ".",
-    "success"
-  );
-  setText(
-    "chartUpdateStatus",
-    (isIncome ? "Income" : "Expense") + ": " + formatMoney(updatedAmount)
-  );
-  openDashboardPage();
-}
-
-
-  async function deleteTransaction(id) {
-
-    const response =
-        await fetch(`/delete/${id}`, {
-            method: "DELETE"
-        });
-
-    await response.json();
-
-    loadDashboard();
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
-}
-
 
 function calculateTotals(transactions) {
   let income = 0;
@@ -1148,54 +876,6 @@ function renderHistory(transactions) {
   }).join("");
 }
 
-function renderDashboardSearch(transactions) {
-  const panel = document.getElementById("dashboardSearchPanel");
-  const body = document.getElementById("dashboardSearchBody");
-  const summary = document.getElementById("dashboardSearchSummary");
-  const search = getValue("dashboardSearch").toLowerCase();
-
-  if (!panel || !body || !summary) {
-    return;
-  }
-
-  if (!search) {
-    panel.classList.add("search-hidden");
-    body.innerHTML = "";
-    return;
-  }
-
-  const matches = transactions.filter(function(item) {
-    return item.name.toLowerCase().includes(search) ||
-      item.category.toLowerCase().includes(search) ||
-      item.type.toLowerCase().includes(search) ||
-      item.date.toLowerCase().includes(search);
-  });
-
-  panel.classList.remove("search-hidden");
-  summary.textContent = matches.length + " matching transaction" + (matches.length === 1 ? "" : "s") + ".";
-
-  if (matches.length === 0) {
-    body.innerHTML = '<tr><td colspan="5" class="empty-state">No matching transactions found.</td></tr>';
-    return;
-  }
-
-  body.innerHTML = matches.map(function(item) {
-    const isIncome = item.type === "income";
-    const sign = isIncome ? "+" : "-";
-    const amountClass = isIncome ? "income-text" : "expense-text";
-
-    return `
-      <tr>
-        <td>${escapeHtml(capitalize(item.type))}</td>
-        <td>${escapeHtml(item.name)}</td>
-        <td>${escapeHtml(item.category)}</td>
-        <td>${escapeHtml(item.date)}</td>
-        <td class="${amountClass}">${sign} ${formatMoney(item.amount)}</td>
-      </tr>
-    `;
-  }).join("");
-}
-
 function filterHistoryTransactions(transactions) {
   const range = getValue("historyRange") || "all";
   const search = getValue("historySearch").toLowerCase();
@@ -1271,10 +951,6 @@ function exportHistoryCsv() {
   const transactions = getFilteredHistory();
 
   if (transactions.length === 0) {
-<<<<<<< HEAD
-=======
-    showHistoryMessage("No records available to export.", "error");
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
     return;
   }
 
@@ -1294,7 +970,6 @@ function exportHistoryCsv() {
   link.href = url;
   link.download = "budgetmate-history-" + new Date().toISOString().slice(0, 10) + ".csv";
   link.click();
-<<<<<<< HEAD
   URL.revokeObjectURL(url);
 }
 
@@ -1351,92 +1026,7 @@ function getTransactions() {
 
 function saveTransactions(transactions) {
   currentTransactions = transactions.slice();
-=======
-  setTimeout(function() {
-    URL.revokeObjectURL(url);
-  }, 1000);
-  showHistoryMessage("CSV export started.", "success");
 }
-
-function printHistoryReport() {
-  const transactions = getFilteredHistory();
-  const totals = calculateTotals(transactions);
-  const user = getCurrentUser();
-  const report = window.open("", "_blank");
-
-  if (!report) {
-    showHistoryMessage("Please allow popups to print the report.", "error");
-    return;
-  }
-
-  const rows = transactions.map(function(item) {
-    retch (error) {
-    allTransactions = {};
-  }
-
-  if (!Array.isArray(allTransactions[user.id])) {
-    allTransactions[user.id] = starterTransactions.slice();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
-   t cleanedTransactions = allTransactions[user.id].filter(function(item) {
-    return item &&
-     id: Number(item.id) || Date.now() + Math.random(),
-      type: item.type,
-      name: String(item.name || "Transaction"),
-      amount: Number(item.amount),
-      category: String(item.category || (item.type === "income" ? "Income" : "Other")),
-      date: String(item.date || "")
-    };
-  });
-
-  if (cleanedTransactions.length !== allTransactions[user.id].length) {
-    allTransactions[user.id] = cleanedTransactions;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
-  }
-
-  return cleanedTransactions;
-} return starterTransactions.slice();
-  }  (item.type === "income" || item.type === "expense") &&
-      Number.isFinite(Number(item.amount));
-  }).map(function(item) {
-    return {
-     
-urn "<tr><td>" + escapeHtml(capitalize(item.type)) + "</td><td>" +
-      escapeHtml(item.name) + "</td><td>" + escapeHtml(item.category) +
-      "</td><td>" + escapeHtml(item.date) + "</td><td>" +
-      formatMoney(item.amount) + "</td></tr>";
-  }).join("");
-
-  report.document.write(
-    "<!DOCTYPE html><html><head><title>BudgetMate Report</title>" +
-    "<style>body{font-family:Arial;padding:35px;color:#1f2937}h1{color:#223161}" +
-    ".summary{display:flex;gap:15px;margin:22px 0}.summary div{padding:14px 20px;background:#eef2ff;border-radius:10px}" +
-    "table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #ddd;text-align:left}</style>" +
-    "</head><body><h1>BudgetMate Financial Report</h1><p>" +
-    escapeHtml(user ? user.name : "User") + " | Generated " + new Date().toLocaleDateString() +
-    "</p><div class='summary'><div>Income<br><strong>" + formatMoney(totals.income) +
-    "</strong></div><div>Expense<br><strong>" + formatMoney(totals.expense) +
-    "</strong></div><div>Balance<br><strong>" + formatMoney(totals.balance) +
-    "</strong></div></div><table><thead><tr><th>Type</th><th>Name</th><th>Category</th>" +
-    "<th>Date</th><th>Amount</th></tr></thead><tbody>" + rows +
-    "</tbody></table><script>window.onload=function(){window.print();}<\/script></body></html>"
-  );
-  report.document.close();
-  showHistoryMessage("Print report opened.", "success");
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
-}
-
-function showHistoryMessage(text, status) {
-  showFormStatus("historyMessage", text, status);
-}
-
-async function getTransactions() {
-  
-    const response = await fetch("/transactions");
-    return await response.json();
-}
-
-
-
 
 function clearTransactionForm(type) {
   if (type === "income") {
@@ -1501,7 +1091,7 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-document.addEventListener("DOMContentLoaded",  async function() {
+document.addEventListener("DOMContentLoaded", function() {
   applySettings();
   const user = getCurrentUser();
 
