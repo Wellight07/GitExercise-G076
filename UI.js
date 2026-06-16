@@ -9,12 +9,7 @@ const defaultSettings = {
   darkMode: false
 };
 
-const starterTransactions = [
-  { id: 1, type: "income", name: "Allowance", amount: 500, category: "Income", date: "2026-05-13" },
-  { id: 2, type: "expense", name: "Lunch", amount: 25, category: "Food", date: "2026-05-13" },
-  { id: 3, type: "expense", name: "Train", amount: 18, category: "Transport", date: "2026-05-14" },
-  { id: 4, type: "expense", name: "Notebook", amount: 32, category: "Education", date: "2026-05-15" }
-];
+
 
 function enterApp(user) {
   user = user || getCurrentUser();
@@ -30,6 +25,7 @@ function enterApp(user) {
   setText("currentUserAvatar", user.name.charAt(0).toUpperCase());
   setText("currentUserDetails", (user.age || "-") + " years | " + (user.gender || "Not set"));
   setValue("settingsName", user.name);
+  setValue("settingsStudentId", user.studentId || "");
   setValue("settingsAge", user.age || "");
   setValue("settingsGender", user.gender || "Prefer not to say");
   applySettings();
@@ -47,7 +43,7 @@ function showAuthForm(type) {
   showAuthMessage("", "");
 }
 
-function signUp(event) {
+async function signUp(event) {
   event.preventDefault();
   const name = getValue("signUpName");
   const email = getValue("signUpEmail").toLowerCase();
@@ -72,33 +68,38 @@ function signUp(event) {
     email: email,
     age: age,
     gender: gender,
-    password: password
+    studentId: ""
   };
+  await setUserPassword(user, password);
   users.push(user);
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
   localStorage.setItem(SESSION_KEY, user.id);
   enterApp(user);
 }
 
-function signIn(event) {
+async function signIn(event) {
   event.preventDefault();
   const email = getValue("signInEmail").toLowerCase();
   const password = getValue("signInPassword");
-  const user = getUsers().find(function(item) {
-    return item.email === email && item.password === password;
+  const users = getUsers();
+  const user = users.find(function(item) {
+    return item.email === email;
   });
 
-  if (!user) {
+  if (!user || !(await passwordMatches(user, password))) {
     showAuthMessage("Email or password is incorrect.", "error");
     return;
   }
 
+  await migrateLegacyPassword(user, password);
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
   localStorage.setItem(SESSION_KEY, user.id);
   enterApp(user);
 }
 
-function resetPassword(event) {
+async function resetPassword(event) {
   event.preventDefault();
+  const name = getValue("resetName").toLowerCase();
   const email = getValue("resetEmail").toLowerCase();
   const password = getValue("resetPassword");
   const users = getUsers();
@@ -106,8 +107,8 @@ function resetPassword(event) {
     return item.email === email;
   });
 
-  if (!user) {
-    showAuthMessage("No local account was found for this email.", "error");
+  if (!user || user.name.toLowerCase() !== name) {
+    showAuthMessage("No matching local account was found for this name and email.", "error");
     return;
   }
 
@@ -116,7 +117,7 @@ function resetPassword(event) {
     return;
   }
 
-  user.password = password;
+  await setUserPassword(user, password);
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
   showAuthForm("signin");
   setValue("signInEmail", email);
@@ -145,6 +146,42 @@ function showAuthMessage(text, status) {
   message.className = "auth-message " + status;
 }
 
+function generateSalt() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map(function(byte) {
+    return byte.toString(16).padStart(2, "0");
+  }).join("");
+}
+
+async function hashPassword(password, salt) {
+  const data = new TextEncoder().encode(salt + password);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest)).map(function(byte) {
+    return byte.toString(16).padStart(2, "0");
+  }).join("");
+}
+
+async function setUserPassword(user, password) {
+  user.passwordSalt = generateSalt();
+  user.passwordHash = await hashPassword(password, user.passwordSalt);
+  delete user.password;
+}
+
+async function passwordMatches(user, password) {
+  if (user.passwordHash && user.passwordSalt) {
+    return await hashPassword(password, user.passwordSalt) === user.passwordHash;
+  }
+
+  return user.password === password;
+}
+
+async function migrateLegacyPassword(user, password) {
+  if (!user.passwordHash && user.password === password) {
+    await setUserPassword(user, password);
+  }
+}
+
 function getSettings() {
   try {
     return Object.assign({}, defaultSettings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
@@ -170,6 +207,7 @@ function applySettings() {
 function saveProfileSettings() {
   const user = getCurrentUser();
   const name = getValue("settingsName");
+  const studentId = getValue("settingsStudentId");
   const age = Number(getValue("settingsAge"));
   const gender = getValue("settingsGender");
 
@@ -185,6 +223,7 @@ function saveProfileSettings() {
 
   if (savedUser) {
     savedUser.name = name;
+    savedUser.studentId = studentId;
     savedUser.age = age;
     savedUser.gender = gender;
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
@@ -195,12 +234,12 @@ function saveProfileSettings() {
   }
 }
 
-function changePassword() {
+async function changePassword() {
   const user = getCurrentUser();
   const currentPassword = getValue("currentPassword");
   const newPassword = getValue("newPassword");
 
-  if (!user || currentPassword !== user.password) {
+  if (!user || !(await passwordMatches(user, currentPassword))) {
     showFormStatus("passwordMessage", "Current password is incorrect.", "error");
     return;
   }
@@ -215,7 +254,7 @@ function changePassword() {
     return item.id === user.id;
   });
 
-  savedUser.password = newPassword;
+  await setUserPassword(savedUser, newPassword);
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
   setValue("currentPassword", "");
   setValue("newPassword", "");
@@ -265,8 +304,9 @@ function openDashboardPage() {
   }
 }
 
-function loadDashboard() {
-  const transactions = getTransactions();
+async function loadDashboard() {
+ const transactions =
+    await getTransactions();
   const totals = calculateTotals(transactions);
 
   setText("balanceValue", formatMoney(totals.balance));
@@ -282,6 +322,7 @@ function loadDashboard() {
   renderCategoryChart(totals.categoryTotals);
   renderSmartSuggestions(totals);
   renderHistory(transactions);
+  renderDashboardSearch(transactions);
   renderGoals();
 }
 
@@ -478,15 +519,10 @@ function showGoalMessage(text, status) {
 }
 
 function addTransaction(type) {
-  const isIncome = type === "income";
-  const name = getValue(isIncome ? "incomeName" : "expenseName");
-  const amount = Number(getValue(isIncome ? "incomeAmount" : "expenseAmount"));
-  const date = getValue(isIncome ? "incomeDate" : "expenseDate");
-  const category = isIncome ? "Income" : getValue("expenseCategory");
-
-  if (!name || !amount || !date) {
-    showMessage("Please fill in name, amount, and date.", "error");
-    return;
+ async function getTransactions() {
+    const response = await fetch("/transactions");
+    return await response.json();
+}
   }
 
   const transactions = getTransactions();
@@ -516,15 +552,19 @@ function addTransaction(type) {
   openDashboardPage();
 }
 
-function deleteTransaction(id) {
-  const transactions = getTransactions().filter(function(item) {
-    return item.id !== id;
-  });
 
-  saveTransactions(transactions);
-  showMessage("Transaction deleted.", "success");
-  loadDashboard();
+  async function deleteTransaction(id) {
+
+    const response =
+        await fetch(`/delete/${id}`, {
+            method: "DELETE"
+        });
+
+    await response.json();
+
+    loadDashboard();
 }
+
 
 function calculateTotals(transactions) {
   let income = 0;
@@ -816,6 +856,54 @@ function renderHistory(transactions) {
   }).join("");
 }
 
+function renderDashboardSearch(transactions) {
+  const panel = document.getElementById("dashboardSearchPanel");
+  const body = document.getElementById("dashboardSearchBody");
+  const summary = document.getElementById("dashboardSearchSummary");
+  const search = getValue("dashboardSearch").toLowerCase();
+
+  if (!panel || !body || !summary) {
+    return;
+  }
+
+  if (!search) {
+    panel.classList.add("search-hidden");
+    body.innerHTML = "";
+    return;
+  }
+
+  const matches = transactions.filter(function(item) {
+    return item.name.toLowerCase().includes(search) ||
+      item.category.toLowerCase().includes(search) ||
+      item.type.toLowerCase().includes(search) ||
+      item.date.toLowerCase().includes(search);
+  });
+
+  panel.classList.remove("search-hidden");
+  summary.textContent = matches.length + " matching transaction" + (matches.length === 1 ? "" : "s") + ".";
+
+  if (matches.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" class="empty-state">No matching transactions found.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = matches.map(function(item) {
+    const isIncome = item.type === "income";
+    const sign = isIncome ? "+" : "-";
+    const amountClass = isIncome ? "income-text" : "expense-text";
+
+    return `
+      <tr>
+        <td>${escapeHtml(capitalize(item.type))}</td>
+        <td>${escapeHtml(item.name)}</td>
+        <td>${escapeHtml(item.category)}</td>
+        <td>${escapeHtml(item.date)}</td>
+        <td class="${amountClass}">${sign} ${formatMoney(item.amount)}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
 function filterHistoryTransactions(transactions) {
   const range = getValue("historyRange") || "all";
   const search = getValue("historySearch").toLowerCase();
@@ -891,6 +979,7 @@ function exportHistoryCsv() {
   const transactions = getFilteredHistory();
 
   if (transactions.length === 0) {
+    showHistoryMessage("No records available to export.", "error");
     return;
   }
 
@@ -910,7 +999,10 @@ function exportHistoryCsv() {
   link.href = url;
   link.download = "budgetmate-history-" + new Date().toISOString().slice(0, 10) + ".csv";
   link.click();
-  URL.revokeObjectURL(url);
+  setTimeout(function() {
+    URL.revokeObjectURL(url);
+  }, 1000);
+  showHistoryMessage("CSV export started.", "success");
 }
 
 function printHistoryReport() {
@@ -920,11 +1012,42 @@ function printHistoryReport() {
   const report = window.open("", "_blank");
 
   if (!report) {
+    showHistoryMessage("Please allow popups to print the report.", "error");
     return;
   }
 
   const rows = transactions.map(function(item) {
-    return "<tr><td>" + escapeHtml(capitalize(item.type)) + "</td><td>" +
+    retch (error) {
+    allTransactions = {};
+  }
+
+  if (!Array.isArray(allTransactions[user.id])) {
+    allTransactions[user.id] = starterTransactions.slice();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
+   t cleanedTransactions = allTransactions[user.id].filter(function(item) {
+    return item &&
+     id: Number(item.id) || Date.now() + Math.random(),
+      type: item.type,
+      name: String(item.name || "Transaction"),
+      amount: Number(item.amount),
+      category: String(item.category || (item.type === "income" ? "Income" : "Other")),
+      date: String(item.date || "")
+    };
+  });
+
+  if (cleanedTransactions.length !== allTransactions[user.id].length) {
+    allTransactions[user.id] = cleanedTransactions;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
+  }
+
+  return cleanedTransactions;
+} return starterTransactions.slice();
+  }  (item.type === "income" || item.type === "expense") &&
+      Number.isFinite(Number(item.amount));
+  }).map(function(item) {
+    return {
+     
+urn "<tr><td>" + escapeHtml(capitalize(item.type)) + "</td><td>" +
       escapeHtml(item.name) + "</td><td>" + escapeHtml(item.category) +
       "</td><td>" + escapeHtml(item.date) + "</td><td>" +
       formatMoney(item.amount) + "</td></tr>";
@@ -945,77 +1068,21 @@ function printHistoryReport() {
     "</tbody></table><script>window.onload=function(){window.print();}<\/script></body></html>"
   );
   report.document.close();
+  showHistoryMessage("Print report opened.", "success");
 }
 
-function getTransactions() {
-  const user = getCurrentUser();
-
-  if (!user) {
-    return [];
-  }
-
-  let allTransactions = {};
-
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (Array.isArray(saved)) {
-      allTransactions[user.id] = saved;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
-      return saved;
-    }
-    allTransactions = saved || {};
-  } catch (error) {
-    allTransactions = {};
-  }
-
-  if (!Array.isArray(allTransactions[user.id])) {
-    allTransactions[user.id] = starterTransactions.slice();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
-    return starterTransactions.slice();
-  }
-
-  const cleanedTransactions = allTransactions[user.id].filter(function(item) {
-    return item &&
-      (item.type === "income" || item.type === "expense") &&
-      Number.isFinite(Number(item.amount));
-  }).map(function(item) {
-    return {
-      id: Number(item.id) || Date.now() + Math.random(),
-      type: item.type,
-      name: String(item.name || "Transaction"),
-      amount: Number(item.amount),
-      category: String(item.category || (item.type === "income" ? "Income" : "Other")),
-      date: String(item.date || "")
-    };
-  });
-
-  if (cleanedTransactions.length !== allTransactions[user.id].length) {
-    allTransactions[user.id] = cleanedTransactions;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
-  }
-
-  return cleanedTransactions;
+function showHistoryMessage(text, status) {
+  showFormStatus("historyMessage", text, status);
 }
 
-function saveTransactions(transactions) {
-  const user = getCurrentUser();
-
-  if (!user) {
-    return;
-  }
-
-  let allTransactions = {};
-
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    allTransactions = Array.isArray(saved) ? {} : (saved || {});
-  } catch (error) {
-    allTransactions = {};
-  }
-
-  allTransactions[user.id] = transactions;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(allTransactions));
+async function getTransactions() {
+  
+    const response = await fetch("/transactions");
+    return await response.json();
 }
+
+
+
 
 function clearTransactionForm(type) {
   if (type === "income") {
@@ -1080,7 +1147,7 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded",  async function() {
   applySettings();
   const user = getCurrentUser();
 
