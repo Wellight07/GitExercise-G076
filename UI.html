@@ -49,15 +49,9 @@
           <button class="auth-submit" type="submit">Create Account</button>
         </form>
 
-<<<<<<< HEAD
         <form id="forgotPasswordForm" class="auth-form auth-hidden" onsubmit="resetAccountPassword(event)">
           <h2>Reset Password</h2>
           <p>Enter your registered full name, email, and choose a new password.</p>
-=======
-        <form id="forgotPasswordForm" class="auth-form auth-hidden" onsubmit="resetPassword(event)">
-          <h2>Reset Password</h2>
-          <p>Confirm your account name and email before choosing a new password.</p>
->>>>>>> 4d9f0abf7c1010792591f659667277496e98de86
           <input id="resetName" type="text" placeholder="Registered full name" required>
           <input id="resetEmail" type="email" placeholder="Registered email" required>
           <input id="resetPassword" type="password" minlength="4" placeholder="New password" required>
@@ -98,7 +92,7 @@
             <h2>Dashboard</h2>
             <p>Track your income, expenses, and savings goal.</p>
           </div>
-          <input id="dashboardSearch" type="search" placeholder="Search..." oninput="loadDashboard()">
+          <input placeholder="Search...">
         </div>
 
         <div class="cards">
@@ -133,27 +127,6 @@
             <span id="chartUpdateStatus" class="chart-update-status">Live</span>
           </div>
           <div class="bar-chart" id="summaryChart"></div>
-        </section>
-
-        <section id="dashboardSearchPanel" class="panel dashboard-search-panel search-hidden">
-          <div class="panel-title">
-            <div>
-              <h3>Search Results</h3>
-              <p id="dashboardSearchSummary">Matching transactions.</p>
-            </div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Date</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody id="dashboardSearchBody"></tbody>
-          </table>
         </section>
       </section>
 
@@ -343,8 +316,6 @@
             <button class="tool-btn secondary" type="button" onclick="printHistoryReport()">Print Report</button>
           </div>
         </div>
-
-        <p id="historyMessage" class="form-message"></p>
 
         <section class="panel">
           <div id="historySummary" class="history-summary"></div>
