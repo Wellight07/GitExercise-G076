@@ -23,7 +23,9 @@ def init_db():
             age INTEGER NOT NULL,
             gender TEXT NOT NULL,
             password TEXT NOT NULL,
-            student_id TEXT DEFAULT ''
+            student_id TEXT DEFAULT '',
+            security_question TEXT DEFAULT '',
+            security_answer TEXT DEFAULT ''
         )
     """)
 
@@ -58,6 +60,10 @@ def init_db():
     user_columns = [row[1] for row in cursor.fetchall()]
     if "student_id" not in user_columns:
         cursor.execute("ALTER TABLE users ADD COLUMN student_id TEXT DEFAULT ''")
+    if "security_question" not in user_columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN security_question TEXT DEFAULT ''")
+    if "security_answer" not in user_columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN security_answer TEXT DEFAULT ''")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS goals(
@@ -88,17 +94,21 @@ def row_to_user(row):
         "gender": row[4],
         "password": row[5],
         "studentId": row[6] or "",
+        "securityQuestion": row[7] or "",
+        "securityAnswer": row[8] or "",
     }
 
 
-def create_user(name, email, age, gender, password, student_id=""):
+def create_user(name, email, age, gender, password, student_id="", security_question="", security_answer=""):
     conn = get_db()
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO users (name, email, age, gender, password, student_id)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (name, email, age, gender, password, student_id))
+        INSERT INTO users (
+            name, email, age, gender, password, student_id, security_question, security_answer
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (name, email, age, gender, password, student_id, security_question, security_answer))
 
     user_id = cursor.lastrowid
     cursor.execute("""
@@ -116,7 +126,7 @@ def get_user_by_email(email):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT id, name, email, age, gender, password, student_id
+        SELECT id, name, email, age, gender, password, student_id, security_question, security_answer
         FROM users WHERE lower(email) = lower(?)
     """, (email,))
     row = cursor.fetchone()
@@ -130,7 +140,7 @@ def get_user_by_id(user_id):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT id, name, email, age, gender, password, student_id
+        SELECT id, name, email, age, gender, password, student_id, security_question, security_answer
         FROM users WHERE id = ?
     """, (user_id,))
     row = cursor.fetchone()
@@ -139,15 +149,24 @@ def get_user_by_id(user_id):
     return row_to_user(row)
 
 
-def update_user_profile(user_id, name, age, gender, student_id=""):
+def update_user_profile(user_id, name, age, gender, student_id="", security_question="", security_answer=""):
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("""
-        UPDATE users
-        SET name = ?, age = ?, gender = ?, student_id = ?
-        WHERE id = ?
-    """, (name, age, gender, student_id, user_id))
+    if security_answer:
+        cursor.execute("""
+            UPDATE users
+            SET name = ?, age = ?, gender = ?, student_id = ?,
+                security_question = ?, security_answer = ?
+            WHERE id = ?
+        """, (name, age, gender, student_id, security_question, security_answer, user_id))
+    else:
+        cursor.execute("""
+            UPDATE users
+            SET name = ?, age = ?, gender = ?, student_id = ?,
+                security_question = ?
+            WHERE id = ?
+        """, (name, age, gender, student_id, security_question, user_id))
 
     conn.commit()
     updated = cursor.rowcount

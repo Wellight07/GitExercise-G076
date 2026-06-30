@@ -35,6 +35,9 @@
           <p>Your account is stored locally in this browser.</p>
           <input id="signUpName" type="text" placeholder="Full name" required>
           <input id="signUpEmail" type="email" placeholder="Email address" required>
+          <input id="signUpStudentId" type="text" placeholder="Student ID for password reset">
+          <input id="signUpSecurityQuestion" type="text" placeholder="Security question">
+          <input id="signUpSecurityAnswer" type="text" placeholder="Security answer">
           <div class="auth-row">
             <input id="signUpAge" type="number" min="13" max="100" placeholder="Age" required>
             <select id="signUpGender" required>
@@ -51,9 +54,11 @@
 
         <form id="forgotPasswordForm" class="auth-form auth-hidden" onsubmit="resetAccountPassword(event)">
           <h2>Reset Password</h2>
-          <p>Enter your registered full name, email, and choose a new password.</p>
+          <p>Verify your student ID and security answer, then choose a new password.</p>
           <input id="resetName" type="text" placeholder="Registered full name" required>
           <input id="resetEmail" type="email" placeholder="Registered email" required>
+          <input id="resetStudentId" type="text" placeholder="Student ID" required>
+          <input id="resetSecurityAnswer" type="text" placeholder="Security answer" required>
           <input id="resetPassword" type="password" minlength="4" placeholder="New password" required>
           <button class="auth-submit" type="submit">Reset Password</button>
           <button class="text-btn" type="button" onclick="showAuthForm('signin')">Back to Sign In</button>
@@ -252,6 +257,10 @@
             <input id="settingsName" type="text" placeholder="Enter your name">
             <label for="settingsStudentId">Student ID</label>
             <input id="settingsStudentId" type="text" placeholder="Enter student ID">
+            <label for="settingsSecurityQuestion">Security Question</label>
+            <input id="settingsSecurityQuestion" type="text" placeholder="Example: What is your first school?">
+            <label for="settingsSecurityAnswer">Security Answer</label>
+            <input id="settingsSecurityAnswer" type="text" placeholder="Leave blank to keep current answer">
             <label for="settingsAge">Age</label>
             <input id="settingsAge" type="number" min="13" max="100" placeholder="Enter your age">
             <label for="settingsGender">Gender</label>

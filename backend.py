@@ -1,17 +1,36 @@
 from pathlib import Path
 from threading import Thread
+
 from  flask import Flask , jsonify, request, send_from_directory
 
+import pandas as pd
+from sklearn.tree import DecisionTreeClassifier
 import database
-
-try:
-    import pandas as pd
-except ImportError:
-    pd = None
 
 BASE_DIR = Path(__file__).resolve().parent
 
 app = Flask(__name__)
+
+TREE_FEATURES = ["expense_rate", "savings_rate", "top_category_rate"]
+
+
+def train_financial_decision_tree():
+    training_data = pd.DataFrame([
+        {"expense_rate": 110, "savings_rate": -10, "top_category_rate": 45, "label": "danger"},
+        {"expense_rate": 100, "savings_rate": 0, "top_category_rate": 50, "label": "danger"},
+        {"expense_rate": 90, "savings_rate": 10, "top_category_rate": 42, "label": "warning"},
+        {"expense_rate": 80, "savings_rate": 20, "top_category_rate": 38, "label": "warning"},
+        {"expense_rate": 65, "savings_rate": 35, "top_category_rate": 35, "label": "warning"},
+        {"expense_rate": 55, "savings_rate": 45, "top_category_rate": 28, "label": "success"},
+        {"expense_rate": 40, "savings_rate": 60, "top_category_rate": 25, "label": "success"},
+        {"expense_rate": 30, "savings_rate": 70, "top_category_rate": 20, "label": "success"},
+    ])
+    model = DecisionTreeClassifier(max_depth=3, random_state=42)
+    model.fit(training_data[TREE_FEATURES], training_data["label"])
+    return model
+
+
+FINANCIAL_DECISION_TREE = train_financial_decision_tree()
 
 
 def get_all_transactions():
@@ -43,6 +62,38 @@ def calculate_balance():
             balance -= amount
 
     return balance
+
+
+def validate_reset_identity(data):
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip().lower()
+    student_id = data.get("studentId", "").strip()
+    security_answer = data.get("securityAnswer", "").strip()
+
+    if not name or not email or not student_id or not security_answer:
+        return None, "Full name, email, student ID, and security answer are required", 400
+
+    user = database.get_user_by_email(email)
+
+    if not user:
+        return None, "No account was found for this email", 404
+
+    if user["name"].strip().lower() != name.lower():
+        return None, "Full name does not match this registered email", 403
+
+    if not user.get("studentId"):
+        return None, "Student ID is not set for this account", 403
+
+    if user["studentId"].strip().lower() != student_id.lower():
+        return None, "Student ID does not match this account", 403
+
+    if not user.get("securityAnswer"):
+        return None, "Security answer is not set for this account", 403
+
+    if user["securityAnswer"].strip().lower() != security_answer.lower():
+        return None, "Security answer is incorrect", 403
+
+    return user, "", 200
 
 
 def row_to_transaction(row):
@@ -96,6 +147,15 @@ def format_money(value, currency):
     return symbols.get(currency, currency) + " " + format(value, ".2f")
 
 
+def predict_financial_status(expense_rate, savings_rate, top_category_rate):
+    features = pd.DataFrame([{
+        "expense_rate": expense_rate,
+        "savings_rate": savings_rate,
+        "top_category_rate": top_category_rate,
+    }])
+    return FINANCIAL_DECISION_TREE.predict(features[TREE_FEATURES])[0]
+
+
 def build_decision_tree_suggestions(transactions, currency="RM"):
     totals = get_transaction_totals(transactions)
     income = totals["income"]
@@ -103,52 +163,51 @@ def build_decision_tree_suggestions(transactions, currency="RM"):
     balance = totals["balance"]
     category_totals = totals["categoryTotals"]
     suggestions = []
+    top_category = None
+    category_rate = 0
 
     if income <= 0:
         suggestions.append(make_suggestion(
             "warning",
             "Decision tree: add income first",
-            "Pandas needs at least one income record before it can compare your spending pattern.",
+            "Add at least one income record before the model compares your spending pattern.",
         ))
         return suggestions
 
     expense_rate = (expense / income) * 100
     savings_rate = (balance / income) * 100
 
-    if expense > income:
-        suggestions.append(make_suggestion(
-            "danger",
-            "Decision tree: spending is over income",
-            "You spent " + format_money(expense - income, currency) +
-            " more than your income. Reduce optional spending immediately.",
-        ))
-    elif expense_rate >= 80:
-        suggestions.append(make_suggestion(
-            "warning",
-            "Decision tree: high spending risk",
-            "Expenses use " + format(expense_rate, ".0f") +
-            "% of your income. Keep at least 20% for savings.",
-        ))
-    elif expense_rate >= 60:
-        suggestions.append(make_suggestion(
-            "warning",
-            "Decision tree: watch spending",
-            "Expenses use " + format(expense_rate, ".0f") +
-            "% of your income. Review non-essential purchases.",
-        ))
-    else:
-        suggestions.append(make_suggestion(
-            "success",
-            "Decision tree: spending is healthy",
-            "Expenses use " + format(expense_rate, ".0f") +
-            "% of your income, leaving " + format_money(max(balance, 0), currency) + " available.",
-        ))
-
     if category_totals and expense > 0:
         top_category = max(category_totals, key=category_totals.get)
         top_amount = category_totals[top_category]
         category_rate = (top_amount / expense) * 100
 
+    decision_level = predict_financial_status(expense_rate, savings_rate, category_rate)
+
+    if decision_level == "danger":
+        suggestions.append(make_suggestion(
+            "danger",
+            "Decision tree: high risk",
+            "The model classified this account as high risk. Expenses use " +
+            format(expense_rate, ".0f") + "% of income and savings are " +
+            format(savings_rate, ".0f") + "%.",
+        ))
+    elif decision_level == "warning":
+        suggestions.append(make_suggestion(
+            "warning",
+            "Decision tree: needs attention",
+            "The model classified this account as needing attention. Expenses use " +
+            format(expense_rate, ".0f") + "% of income.",
+        ))
+    else:
+        suggestions.append(make_suggestion(
+            "success",
+            "Decision tree: healthy pattern",
+            "The model classified this account as healthy. Expenses use " + format(expense_rate, ".0f") +
+            "% of your income, leaving " + format_money(max(balance, 0), currency) + " available.",
+        ))
+
+    if top_category:
         if category_rate >= 40:
             suggestions.append(make_suggestion(
                 "warning",
@@ -228,6 +287,8 @@ def sign_up():
         data["gender"],
         data["password"],
         data.get("studentId", ""),
+        data.get("securityQuestion", ""),
+        data.get("securityAnswer", ""),
     )
 
     return jsonify({"user": user, "settings": database.get_settings(user["id"])})
@@ -247,23 +308,15 @@ def sign_in():
 @app.route("/reset-password", methods=["POST"])
 def reset_password():
     data = request.get_json(silent=True) or {}
-    name = data.get("name", "").strip()
-    email = data.get("email", "")
     password = data.get("password", "")
 
-    if not name:
-        return jsonify({"error": "Registered full name is required"}), 400
+    user, error, status = validate_reset_identity(data)
+
+    if error:
+        return jsonify({"error": error}), status
 
     if len(password) < 4:
         return jsonify({"error": "New password must have at least 4 characters"}), 400
-
-    user = database.get_user_by_email(email)
-
-    if not user:
-        return jsonify({"error": "No account was found for this email"}), 404
-
-    if user["name"].strip().lower() != name.lower():
-        return jsonify({"error": "Full name does not match this registered email"}), 403
 
     database.update_user_password(user["id"], password)
 
@@ -286,6 +339,8 @@ def update_profile(user_id):
         age,
         gender,
         data.get("studentId", ""),
+        data.get("securityQuestion", ""),
+        data.get("securityAnswer", ""),
     )
 
     if updated == 0:
@@ -336,8 +391,9 @@ def smart_suggestions():
     transactions = [row_to_transaction(row) for row in rows]
 
     return jsonify({
-        "engine": "pandas decision tree" if pd is not None else "python decision tree",
-        "pandasAvailable": pd is not None,
+        "engine": "scikit-learn DecisionTreeClassifier",
+        "pandasAvailable": True,
+        "scikitLearnAvailable": True,
         "suggestions": build_decision_tree_suggestions(transactions, currency),
     })
 

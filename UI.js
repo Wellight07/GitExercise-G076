@@ -42,6 +42,8 @@ async function enterApp(user, settings) {
   setText("currentUserDetails", (user.age || "-") + " years | " + (user.gender || "Not set"));
   setValue("settingsName", user.name);
   setValue("settingsStudentId", user.studentId || "");
+  setValue("settingsSecurityQuestion", user.securityQuestion || "");
+  setValue("settingsSecurityAnswer", "");
   setValue("settingsAge", user.age || "");
   setValue("settingsGender", user.gender || "Prefer not to say");
   applySettings();
@@ -64,6 +66,9 @@ async function signUp(event) {
   event.preventDefault();
   const name = getValue("signUpName");
   const email = getValue("signUpEmail").toLowerCase();
+  const studentId = getValue("signUpStudentId");
+  const securityQuestion = getValue("signUpSecurityQuestion");
+  const securityAnswer = getValue("signUpSecurityAnswer");
   const age = Number(getValue("signUpAge"));
   const gender = getValue("signUpGender");
   const password = getValue("signUpPassword");
@@ -76,7 +81,16 @@ async function signUp(event) {
   try {
     const data = await apiRequest("/signup", {
       method: "POST",
-      body: JSON.stringify({ name: name, email: email, age: age, gender: gender, password: password })
+      body: JSON.stringify({
+        name: name,
+        email: email,
+        studentId: studentId,
+        securityQuestion: securityQuestion,
+        securityAnswer: securityAnswer,
+        age: age,
+        gender: gender,
+        password: password
+      })
     });
     await enterApp(data.user, data.settings);
   } catch (error) {
@@ -104,10 +118,12 @@ async function resetAccountPassword(event) {
   event.preventDefault();
   const name = getValue("resetName");
   const email = getValue("resetEmail").toLowerCase();
+  const studentId = getValue("resetStudentId");
+  const securityAnswer = getValue("resetSecurityAnswer");
   const password = getValue("resetPassword");
 
-  if (!name) {
-    showAuthMessage("Registered full name is required.", "error");
+  if (!name || !email || !studentId || !securityAnswer) {
+    showAuthMessage("Registered full name, email, student ID, and security answer are required.", "error");
     return;
   }
 
@@ -119,7 +135,13 @@ async function resetAccountPassword(event) {
   try {
     const data = await apiRequest("/reset-password", {
       method: "POST",
-      body: JSON.stringify({ name: name, email: email, password: password })
+      body: JSON.stringify({
+        name: name,
+        email: email,
+        studentId: studentId,
+        securityAnswer: securityAnswer,
+        password: password
+      })
     });
     showAuthForm("signin");
     setValue("signInEmail", email);
@@ -168,6 +190,8 @@ async function saveProfileSettings() {
   const user = getCurrentUser();
   const name = getValue("settingsName");
   const studentId = getValue("settingsStudentId");
+  const securityQuestion = getValue("settingsSecurityQuestion");
+  const securityAnswer = getValue("settingsSecurityAnswer");
   const age = Number(getValue("settingsAge"));
   const gender = getValue("settingsGender");
 
@@ -179,12 +203,20 @@ async function saveProfileSettings() {
   try {
     const data = await apiRequest("/profile/" + user.id, {
       method: "PUT",
-      body: JSON.stringify({ name: name, age: age, gender: gender, studentId: studentId })
+      body: JSON.stringify({
+        name: name,
+        age: age,
+        gender: gender,
+        studentId: studentId,
+        securityQuestion: securityQuestion,
+        securityAnswer: securityAnswer
+      })
     });
     currentUser = data.user;
     setText("currentUserName", currentUser.name);
     setText("currentUserAvatar", currentUser.name.charAt(0).toUpperCase());
     setText("currentUserDetails", currentUser.age + " years | " + currentUser.gender);
+    setValue("settingsSecurityAnswer", "");
     showFormStatus("profileMessage", "Profile updated successfully.", "success");
   } catch (error) {
     showFormStatus("profileMessage", error.message, "error");
