@@ -628,7 +628,7 @@ body.dark-mode .history-stat strong {
 
 .category-chart {
   display: grid;
-  gap: 15px;
+  gap: 18px;
   margin-top: 22px;
 }
 
@@ -710,17 +710,54 @@ body.dark-mode .history-stat strong {
   font-weight: 800;
 }
 
+.category-section {
+  display: grid;
+  gap: 12px;
+}
+
+.category-section-title {
+  color: #223161;
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .category-row {
   display: grid;
-  grid-template-columns: 120px 1fr 95px;
+  grid-template-columns: 160px 1fr 95px;
   align-items: center;
   gap: 12px;
 }
 
-.category-name,
+.category-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .category-amount {
   font-size: 14px;
   font-weight: 800;
+}
+
+.category-type {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.category-type.income {
+  color: #065f46;
+  background: #d1fae5;
+}
+
+.category-type.expense {
+  color: #991b1b;
+  background: #fee2e2;
 }
 
 .category-amount {
@@ -739,6 +776,14 @@ body.dark-mode .history-stat strong {
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #2a9d8f, #3a86ff);
+}
+
+.income-category-fill {
+  background: linear-gradient(90deg, #0f9f6e, #2a9d8f);
+}
+
+.expense-category-fill {
+  background: linear-gradient(90deg, #e63946, #f59e0b);
 }
 
 .transaction.income strong,

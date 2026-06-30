@@ -223,34 +223,6 @@ async function saveProfileSettings() {
   }
 }
 
-async function changePassword() {
-  const user = getCurrentUser();
-  const currentPassword = getValue("currentPassword");
-  const newPassword = getValue("newPassword");
-
-  if (!user) {
-    showFormStatus("passwordMessage", "Sign in before changing password.", "error");
-    return;
-  }
-
-  if (newPassword.length < 4) {
-    showFormStatus("passwordMessage", "New password must have at least 4 characters.", "error");
-    return;
-  }
-
-  try {
-    const data = await apiRequest("/change-password/" + user.id, {
-      method: "PUT",
-      body: JSON.stringify({ currentPassword: currentPassword, newPassword: newPassword })
-    });
-    setValue("currentPassword", "");
-    setValue("newPassword", "");
-    showFormStatus("passwordMessage", data.message, "success");
-  } catch (error) {
-    showFormStatus("passwordMessage", error.message, "error");
-  }
-}
-
 function showFormStatus(id, text, status) {
   const message = document.getElementById(id);
 
@@ -342,7 +314,7 @@ function loadDashboard() {
   setText("topCategoryValue", totals.topCategory);
 
   renderSummaryChart(totals);
-  renderCategoryChart(totals.categoryTotals);
+  renderCategoryChart(totals.categoryBreakdown);
   renderSmartSuggestions(totals);
   renderHistory(transactions);
   renderGoals();
@@ -532,11 +504,11 @@ async function addTransaction(type) {
   const name = getValue(isIncome ? "incomeName" : "expenseName");
   const amount = Number(getValue(isIncome ? "incomeAmount" : "expenseAmount"));
   const date = getValue(isIncome ? "incomeDate" : "expenseDate");
-  const category = isIncome ? "Income" : getValue("expenseCategory");
+  const category = getValue(isIncome ? "incomeCategory" : "expenseCategory");
   const user = getCurrentUser();
 
-  if (!user || !name || !amount || !date) {
-    showMessage("Please fill in name, amount, and date.", "error");
+  if (!user || !name || !amount || !date || !category) {
+    showMessage("Please fill in name, amount, date, and category.", "error");
     return;
   }
 
@@ -595,6 +567,10 @@ function calculateTotals(transactions) {
   let income = 0;
   let expense = 0;
   const categoryTotals = {};
+  const categoryBreakdown = {
+    income: {},
+    expense: {}
+  };
 
   transactions.forEach(function(item) {
     const amount = Number(item.amount);
@@ -605,6 +581,8 @@ function calculateTotals(transactions) {
 
     if (item.type === "income") {
       income += amount;
+      const incomeCategory = item.category || "Income";
+      categoryBreakdown.income[incomeCategory] = (categoryBreakdown.income[incomeCategory] || 0) + amount;
       return;
     }
 
@@ -615,6 +593,7 @@ function calculateTotals(transactions) {
     expense += amount;
     const category = item.category || "Other";
     categoryTotals[category] = (categoryTotals[category] || 0) + amount;
+    categoryBreakdown.expense[category] = (categoryBreakdown.expense[category] || 0) + amount;
   });
 
   let topCategory = "None";
@@ -632,7 +611,8 @@ function calculateTotals(transactions) {
     expense: expense,
     balance: income - expense,
     topCategory: topCategory,
-    categoryTotals: categoryTotals
+    categoryTotals: categoryTotals,
+    categoryBreakdown: categoryBreakdown
   };
 }
 
@@ -668,41 +648,79 @@ function renderSummaryChart(totals) {
   }).join("");
 }
 
-function renderCategoryChart(categoryTotals) {
+function renderCategoryChart(categoryBreakdown) {
   const chart = document.getElementById("categoryChart");
 
   if (!chart) {
     return;
   }
 
-  const entries = Object.keys(categoryTotals).map(function(category) {
+  const groups = [
+    { key: "income", label: "Income", empty: "No income category data yet." },
+    { key: "expense", label: "Expense", empty: "No expense category data yet." }
+  ];
+
+  const sections = groups.map(function(group) {
+    const totals = (categoryBreakdown && categoryBreakdown[group.key]) || {};
+    const entries = Object.keys(totals).map(function(category) {
+      return {
+        category: category,
+        amount: totals[category],
+        type: group.key
+      };
+    }).sort(function(a, b) {
+      return b.amount - a.amount;
+    });
+
+    if (entries.length === 0) {
+      return `
+        <div class="category-section">
+          <div class="category-section-title">${group.label}</div>
+          <div class="empty-state">${group.empty}</div>
+        </div>
+      `;
+    }
+
+    const maxAmount = entries[0].amount || 1;
+    const rows = entries.map(function(item) {
+      const width = Math.max((item.amount / maxAmount) * 100, 5);
+
+      return `
+        <div class="category-row">
+          <div class="category-name">
+            <span class="category-type ${item.type}">${group.label}</span>
+            ${escapeHtml(item.category)}
+          </div>
+          <div class="category-track">
+            <div class="category-fill ${item.type}-category-fill" style="width: ${width}%"></div>
+          </div>
+          <div class="category-amount">${formatMoney(item.amount)}</div>
+        </div>
+      `;
+    }).join("");
+
     return {
-      category: category,
-      amount: categoryTotals[category]
+      amount: entries.reduce(function(total, item) {
+        return total + item.amount;
+      }, 0),
+      html: `
+        <div class="category-section">
+          <div class="category-section-title">${group.label}</div>
+          ${rows}
+        </div>
+      `
     };
   }).sort(function(a, b) {
     return b.amount - a.amount;
   });
 
-  if (entries.length === 0) {
-    chart.innerHTML = '<div class="empty-state">No expense data yet.</div>';
+  if (sections.every(function(section) { return section.amount === 0; })) {
+    chart.innerHTML = '<div class="empty-state">No income or expense data yet.</div>';
     return;
   }
 
-  const maxAmount = entries[0].amount || 1;
-
-  chart.innerHTML = entries.map(function(item) {
-    const width = Math.max((item.amount / maxAmount) * 100, 5);
-
-    return `
-      <div class="category-row">
-        <div class="category-name">${escapeHtml(item.category)}</div>
-        <div class="category-track">
-          <div class="category-fill" style="width: ${width}%"></div>
-        </div>
-        <div class="category-amount">${formatMoney(item.amount)}</div>
-      </div>
-    `;
+  chart.innerHTML = sections.map(function(section) {
+    return section.html;
   }).join("");
 }
 
@@ -1065,6 +1083,7 @@ function clearTransactionForm(type) {
     setValue("incomeName", "");
     setValue("incomeAmount", "");
     setValue("incomeDate", "");
+    setValue("incomeCategory", "Allowance");
   } else {
     setValue("expenseName", "");
     setValue("expenseAmount", "");

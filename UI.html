@@ -154,6 +154,15 @@
             <input id="incomeAmount" type="number" placeholder="RM 0">
             <label for="incomeDate">Date</label>
             <input id="incomeDate" type="date">
+            <label for="incomeCategory">Category</label>
+            <select id="incomeCategory">
+              <option>Allowance</option>
+              <option>Salary</option>
+              <option>Scholarship</option>
+              <option>Bonus</option>
+              <option>Gift</option>
+              <option>Other</option>
+            </select>
             <button class="primary-btn" onclick="addTransaction('income')">Add Income</button>
           </section>
 
@@ -223,8 +232,8 @@
         <section class="panel chart-panel">
           <div class="panel-title">
             <div>
-              <h3>Expense by Category</h3>
-              <p>See which category uses the most money.</p>
+              <h3>Income and Expense by Category</h3>
+              <p>Compare your income and expense categories.</p>
             </div>
           </div>
           <div class="category-chart" id="categoryChart"></div>
@@ -289,19 +298,6 @@
           </section>
         </div>
 
-        <section class="panel security-panel">
-          <div>
-            <span class="section-kicker">Account Security</span>
-            <h3>Change Password</h3>
-            <p>Use at least four characters for this local demo account.</p>
-          </div>
-          <div class="security-form">
-            <input id="currentPassword" type="password" placeholder="Current password">
-            <input id="newPassword" type="password" minlength="4" placeholder="New password">
-            <button class="primary-btn" type="button" onclick="changePassword()">Update Password</button>
-          </div>
-          <p id="passwordMessage" class="form-message"></p>
-        </section>
       </section>
 
       <section id="history" class="page">
