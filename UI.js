@@ -1,5 +1,5 @@
 const defaultSettings = {
-  currency: "RM",
+  currency: "MYR",
   darkMode: false
 };
 
@@ -7,6 +7,11 @@ let currentUser = null;
 let currentSettings = Object.assign({}, defaultSettings);
 let currentTransactions = [];
 let currentGoals = [];
+let supportedCurrencies = [
+  { code: "MYR", name: "Malaysian Ringgit" },
+  { code: "USD", name: "US Dollar" },
+  { code: "SGD", name: "Singapore Dollar" }
+];
 
 async function apiRequest(url, options) {
   const response = await fetch(url, Object.assign({
@@ -175,15 +180,57 @@ function getSettings() {
   return Object.assign({}, defaultSettings, currentSettings);
 }
 
+function normalizeCurrencyCode(currency) {
+  return currency === "RM" ? "MYR" : (currency || "MYR");
+}
+
 function getCurrentUser() {
   return currentUser;
 }
 
 function applySettings() {
   const settings = getSettings();
+  settings.currency = normalizeCurrencyCode(settings.currency);
+  populateCurrencySelects();
   setValue("settingsCurrency", settings.currency);
   document.getElementById("settingsDarkMode").checked = settings.darkMode;
   document.body.classList.toggle("dark-mode", settings.darkMode);
+}
+
+async function loadCurrencies() {
+  try {
+    supportedCurrencies = await apiRequest("/currencies");
+  } catch (error) {
+    supportedCurrencies = [
+      { code: "MYR", name: "Malaysian Ringgit" },
+      { code: "USD", name: "US Dollar" },
+      { code: "SGD", name: "Singapore Dollar" }
+    ];
+  }
+
+  populateCurrencySelects();
+}
+
+function populateCurrencySelects() {
+  const options = supportedCurrencies.map(function(currency) {
+    return '<option value="' + escapeHtml(currency.code) + '">' +
+      escapeHtml(currency.code + " - " + currency.name) + '</option>';
+  }).join("");
+  const ids = ["settingsCurrency", "incomeCurrency", "expenseCurrency", "convertFrom", "convertTo"];
+
+  ids.forEach(function(id) {
+    const element = document.getElementById(id);
+
+    if (element && element.options.length !== supportedCurrencies.length) {
+      element.innerHTML = options;
+    }
+  });
+
+  const currency = normalizeCurrencyCode(getSettings().currency);
+  setValue("incomeCurrency", currency);
+  setValue("expenseCurrency", currency);
+  setValue("convertFrom", "USD");
+  setValue("convertTo", currency);
 }
 
 async function saveProfileSettings() {
@@ -235,7 +282,7 @@ function showFormStatus(id, text, status) {
 async function savePreferenceSettings() {
   const user = getCurrentUser();
   const settings = getSettings();
-  settings.currency = getValue("settingsCurrency") || "RM";
+  settings.currency = normalizeCurrencyCode(getValue("settingsCurrency"));
   settings.darkMode = document.getElementById("settingsDarkMode").checked;
 
   if (!user) {
@@ -248,6 +295,7 @@ async function savePreferenceSettings() {
       body: JSON.stringify(settings)
     });
     applySettings();
+    await refreshUserData();
     loadDashboard();
   } catch (error) {
     showFormStatus("profileMessage", error.message, "error");
@@ -289,8 +337,9 @@ async function refreshUserData() {
   }
 
   const userId = encodeURIComponent(user.id);
+  const currency = encodeURIComponent(normalizeCurrencyCode(getSettings().currency));
   const results = await Promise.all([
-    apiRequest("/transactions?user_id=" + userId),
+    apiRequest("/transactions?user_id=" + userId + "&currency=" + currency),
     apiRequest("/goals?user_id=" + userId),
     apiRequest("/settings/" + userId)
   ]);
@@ -503,12 +552,13 @@ async function addTransaction(type) {
   const isIncome = type === "income";
   const name = getValue(isIncome ? "incomeName" : "expenseName");
   const amount = Number(getValue(isIncome ? "incomeAmount" : "expenseAmount"));
+  const currency = normalizeCurrencyCode(getValue(isIncome ? "incomeCurrency" : "expenseCurrency"));
   const date = getValue(isIncome ? "incomeDate" : "expenseDate");
   const category = getValue(isIncome ? "incomeCategory" : "expenseCategory");
   const user = getCurrentUser();
 
-  if (!user || !name || !amount || !date || !category) {
-    showMessage("Please fill in name, amount, date, and category.", "error");
+  if (!user || !name || !Number.isFinite(amount) || amount <= 0 || !date || !category || !currency) {
+    showMessage("Please fill in name, amount greater than 0, currency, date, and category.", "error");
     return;
   }
 
@@ -520,6 +570,8 @@ async function addTransaction(type) {
         type: type,
         name: name,
         amount: amount,
+        currency: currency,
+        displayCurrency: normalizeCurrencyCode(getSettings().currency),
         category: category,
         date: date
       })
@@ -919,7 +971,7 @@ function renderHistory(transactions) {
         <td>${escapeHtml(item.name)}</td>
         <td>${escapeHtml(item.category)}</td>
         <td>${escapeHtml(item.date)}</td>
-        <td class="${amountClass}">${sign} ${formatMoney(item.amount)}</td>
+        <td class="${amountClass}">${sign} ${formatTransactionAmount(item)}</td>
         <td><button class="delete-btn" onclick="deleteTransaction(${item.id})">Delete</button></td>
       </tr>
     `;
@@ -1004,9 +1056,16 @@ function exportHistoryCsv() {
     return;
   }
 
-  const rows = [["Type", "Name", "Category", "Date", "Amount"]].concat(
+  const rows = [["Type", "Name", "Category", "Date", "Original Amount", "Converted Amount"]].concat(
     transactions.map(function(item) {
-      return [item.type, item.name, item.category, item.date, Number(item.amount).toFixed(2)];
+      return [
+        item.type,
+        item.name,
+        item.category,
+        item.date,
+        formatOriginalMoney(item),
+        formatMoney(item.amount)
+      ];
     })
   );
   const csv = rows.map(function(row) {
@@ -1037,7 +1096,7 @@ function printHistoryReport() {
     return "<tr><td>" + escapeHtml(capitalize(item.type)) + "</td><td>" +
       escapeHtml(item.name) + "</td><td>" + escapeHtml(item.category) +
       "</td><td>" + escapeHtml(item.date) + "</td><td>" +
-      formatMoney(item.amount) + "</td></tr>";
+      escapeHtml(formatTransactionAmount(item)) + "</td></tr>";
   }).join("");
 
   report.document.write(
@@ -1068,6 +1127,10 @@ function getTransactions() {
       type: item.type,
       name: String(item.name || "Transaction"),
       amount: Number(item.amount),
+      displayCurrency: normalizeCurrencyCode(item.displayCurrency || getSettings().currency),
+      originalAmount: Number(item.originalAmount || item.amount),
+      originalCurrency: normalizeCurrencyCode(item.originalCurrency || item.displayCurrency || getSettings().currency),
+      exchangeRate: Number(item.exchangeRate || 1),
       category: String(item.category || (item.type === "income" ? "Income" : "Other")),
       date: String(item.date || "")
     };
@@ -1082,11 +1145,13 @@ function clearTransactionForm(type) {
   if (type === "income") {
     setValue("incomeName", "");
     setValue("incomeAmount", "");
+    setValue("incomeCurrency", normalizeCurrencyCode(getSettings().currency));
     setValue("incomeDate", "");
     setValue("incomeCategory", "Allowance");
   } else {
     setValue("expenseName", "");
     setValue("expenseAmount", "");
+    setValue("expenseCurrency", normalizeCurrencyCode(getSettings().currency));
     setValue("expenseDate", "");
   }
 }
@@ -1100,6 +1165,34 @@ function showMessage(text, status) {
 
   message.textContent = text;
   message.className = "form-message " + status;
+}
+
+async function convertCurrencyPreview() {
+  const amount = Number(getValue("convertAmount"));
+  const fromCurrency = normalizeCurrencyCode(getValue("convertFrom"));
+  const toCurrency = normalizeCurrencyCode(getValue("convertTo"));
+
+  if (!Number.isFinite(amount) || amount <= 0 || !fromCurrency || !toCurrency) {
+    showFormStatus("exchangeMessage", "Enter an amount greater than 0 and choose both currencies.", "error");
+    return;
+  }
+
+  try {
+    const data = await apiRequest(
+      "/convert?amount=" + encodeURIComponent(amount) +
+      "&from=" + encodeURIComponent(fromCurrency) +
+      "&to=" + encodeURIComponent(toCurrency)
+    );
+    showFormStatus(
+      "exchangeMessage",
+      formatCurrencyAmount(data.amount, data.from) + " = " +
+      formatCurrencyAmount(data.converted, data.to) +
+      " (rate " + Number(data.rate).toFixed(6) + ")",
+      "success"
+    );
+  } catch (error) {
+    showFormStatus("exchangeMessage", error.message, "error");
+  }
 }
 
 function getValue(id) {
@@ -1124,9 +1217,42 @@ function setText(id, value) {
 }
 
 function formatMoney(value) {
-  const currency = getSettings().currency;
-  const symbols = { RM: "RM", USD: "$", SGD: "S$" };
-  return symbols[currency] + " " + Number(value).toFixed(2);
+  const currency = normalizeCurrencyCode(getSettings().currency);
+  return formatCurrencyAmount(value, currency);
+}
+
+function formatCurrencyAmount(value, currency) {
+  currency = normalizeCurrencyCode(currency);
+  const symbols = {
+    MYR: "RM",
+    USD: "$",
+    SGD: "S$",
+    EUR: "€",
+    GBP: "£",
+    JPY: "¥",
+    CNY: "¥",
+    AUD: "A$",
+    CAD: "C$",
+    THB: "฿",
+    IDR: "Rp",
+    KRW: "₩"
+  };
+  return (symbols[currency] || currency) + " " + Number(value).toFixed(2);
+}
+
+function formatOriginalMoney(item) {
+  return formatCurrencyAmount(item.originalAmount || item.amount, item.originalCurrency || item.displayCurrency);
+}
+
+function formatTransactionAmount(item) {
+  const converted = formatCurrencyAmount(item.amount, item.displayCurrency || getSettings().currency);
+  const original = formatOriginalMoney(item);
+
+  if (normalizeCurrencyCode(item.originalCurrency) === normalizeCurrencyCode(item.displayCurrency || getSettings().currency)) {
+    return converted;
+  }
+
+  return original + " → " + converted;
 }
 
 function capitalize(value) {
@@ -1142,7 +1268,8 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", async function() {
+  await loadCurrencies();
   applySettings();
   const user = getCurrentUser();
 

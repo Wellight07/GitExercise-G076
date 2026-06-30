@@ -32,7 +32,7 @@ def init_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS settings(
             user_id INTEGER PRIMARY KEY,
-            currency TEXT NOT NULL DEFAULT 'RM',
+            currency TEXT NOT NULL DEFAULT 'MYR',
             dark_mode INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )
@@ -45,6 +45,9 @@ def init_db():
             type TEXT NOT NULL,
             name TEXT NOT NULL,
             amount REAL NOT NULL,
+            original_amount REAL,
+            original_currency TEXT DEFAULT 'MYR',
+            exchange_rate REAL DEFAULT 1,
             category TEXT,
             date TEXT,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -55,6 +58,15 @@ def init_db():
     transaction_columns = [row[1] for row in cursor.fetchall()]
     if "user_id" not in transaction_columns:
         cursor.execute("ALTER TABLE transactions ADD COLUMN user_id INTEGER")
+    if "original_amount" not in transaction_columns:
+        cursor.execute("ALTER TABLE transactions ADD COLUMN original_amount REAL")
+        cursor.execute("UPDATE transactions SET original_amount = amount WHERE original_amount IS NULL")
+    if "original_currency" not in transaction_columns:
+        cursor.execute("ALTER TABLE transactions ADD COLUMN original_currency TEXT DEFAULT 'MYR'")
+        cursor.execute("UPDATE transactions SET original_currency = 'MYR' WHERE original_currency IS NULL OR original_currency = ''")
+    if "exchange_rate" not in transaction_columns:
+        cursor.execute("ALTER TABLE transactions ADD COLUMN exchange_rate REAL DEFAULT 1")
+        cursor.execute("UPDATE transactions SET exchange_rate = 1 WHERE exchange_rate IS NULL")
 
     cursor.execute("PRAGMA table_info(users)")
     user_columns = [row[1] for row in cursor.fetchall()]
@@ -113,7 +125,7 @@ def create_user(name, email, age, gender, password, student_id="", security_ques
     user_id = cursor.lastrowid
     cursor.execute("""
         INSERT OR IGNORE INTO settings (user_id, currency, dark_mode)
-        VALUES (?, 'RM', 0)
+        VALUES (?, 'MYR', 0)
     """, (user_id,))
 
     conn.commit()
@@ -202,7 +214,7 @@ def get_settings(user_id):
 
     cursor.execute("""
         INSERT OR IGNORE INTO settings (user_id, currency, dark_mode)
-        VALUES (?, 'RM', 0)
+        VALUES (?, 'MYR', 0)
     """, (user_id,))
     cursor.execute("SELECT currency, dark_mode FROM settings WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
@@ -230,14 +242,26 @@ def update_settings(user_id, currency, dark_mode):
 
 
 # 3. Insert Data
-def insert_data(type, name, amount, category, date, user_id=None):
+def insert_data(type, name, amount, category, date, user_id=None, original_amount=None, original_currency="MYR", exchange_rate=1):
     conn = get_db()
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO transactions (user_id, type, name, amount, category, date)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (user_id, type, name, amount, category, date))
+        INSERT INTO transactions (
+            user_id, type, name, amount, original_amount, original_currency, exchange_rate, category, date
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        user_id,
+        type,
+        name,
+        amount,
+        original_amount if original_amount is not None else amount,
+        original_currency,
+        exchange_rate,
+        category,
+        date,
+    ))
 
     conn.commit()
     transaction_id = cursor.lastrowid
@@ -252,10 +276,13 @@ def get_all_transactions(user_id=None):
     cursor = conn.cursor()
 
     if user_id is None:
-        cursor.execute("SELECT id, type, name, amount, category, date FROM transactions")
+        cursor.execute("""
+            SELECT id, type, name, amount, category, date, original_amount, original_currency, exchange_rate
+            FROM transactions
+        """)
     else:
         cursor.execute("""
-            SELECT id, type, name, amount, category, date
+            SELECT id, type, name, amount, category, date, original_amount, original_currency, exchange_rate
             FROM transactions
             WHERE user_id = ?
             ORDER BY id

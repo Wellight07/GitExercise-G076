@@ -971,6 +971,28 @@ body.dark-mode .history-stat strong {
   gap: 20px;
 }
 
+.exchange-panel {
+  margin-top: 20px;
+}
+
+.exchange-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(130px, 0.8fr) minmax(130px, 0.8fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.exchange-attribution {
+  margin: -4px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.exchange-attribution a {
+  color: #3a67b7;
+  font-weight: 800;
+}
+
 .form-panel {
   display: grid;
   gap: 12px;
@@ -1165,7 +1187,8 @@ td {
   }
 
   .security-panel,
-  .security-form {
+  .security-form,
+  .exchange-grid {
     grid-template-columns: 1fr;
   }
 
