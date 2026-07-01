@@ -78,7 +78,7 @@ async function signUp(event) {
   const gender = getValue("signUpGender");
   const password = getValue("signUpPassword");
 
-  if (!name || !email || age < 13 || age > 100 || !gender || password.length < 4) {
+  if (!name || !email || !studentId || !securityQuestion || !securityAnswer || age < 13 || age > 100 || !gender || password.length < 4) {
     showAuthMessage("Complete all fields. Age must be 13-100 and password at least 4 characters.", "error");
     return;
   }
@@ -124,11 +124,12 @@ async function resetAccountPassword(event) {
   const name = getValue("resetName");
   const email = getValue("resetEmail").toLowerCase();
   const studentId = getValue("resetStudentId");
+  const securityQuestion = getValue("resetSecurityQuestion");
   const securityAnswer = getValue("resetSecurityAnswer");
   const password = getValue("resetPassword");
 
-  if (!name || !email || !studentId || !securityAnswer) {
-    showAuthMessage("Registered full name, email, student ID, and security answer are required.", "error");
+  if (!name || !email || !studentId || !securityQuestion || !securityAnswer) {
+    showAuthMessage("Registered full name, email, student ID, security question, and security answer are required.", "error");
     return;
   }
 
@@ -144,6 +145,7 @@ async function resetAccountPassword(event) {
         name: name,
         email: email,
         studentId: studentId,
+        securityQuestion: securityQuestion,
         securityAnswer: securityAnswer,
         password: password
       })
@@ -557,17 +559,17 @@ async function addTransaction(type) {
   const category = getValue(isIncome ? "incomeCategory" : "expenseCategory");
   const user = getCurrentUser();
 
-  const today = new Date();
-today.setHours(0, 0, 0, 0);
-
-const selectedDate = new Date(date + "T00:00:00");
-
-if (selectedDate > today) {
-    showMessage("Future dates are not allowed.", "error");
-    return;
-}
   if (!user || !name || !Number.isFinite(amount) || amount <= 0 || !date || !category || !currency) {
     showMessage("Please fill in name, amount greater than 0, currency, date, and category.", "error");
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const selectedDate = new Date(date + "T00:00:00");
+
+  if (selectedDate > today) {
+    showMessage("Future dates are not allowed.", "error");
     return;
   }
 
@@ -1280,10 +1282,11 @@ function escapeHtml(value) {
 document.addEventListener("DOMContentLoaded", async function() {
   await loadCurrencies();
   applySettings();
- 
+
   const today = new Date().toISOString().split("T")[0];
-document.getElementById("incomeDate").max = today;
-document.getElementById("expenseDate").max = today;
+  document.getElementById("incomeDate").max = today;
+  document.getElementById("expenseDate").max = today;
+
   const user = getCurrentUser();
 
   if (user) {

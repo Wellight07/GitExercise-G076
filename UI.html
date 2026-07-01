@@ -36,8 +36,16 @@
           <input id="signUpName" type="text" placeholder="Full name" required>
           <input id="signUpEmail" type="email" placeholder="Email address" required>
           <input id="signUpStudentId" type="text" placeholder="Student ID for password reset">
-          <input id="signUpSecurityQuestion" type="text" placeholder="Security question">
-          <input id="signUpSecurityAnswer" type="text" placeholder="Security answer">
+          <select id="signUpSecurityQuestion" required>
+            <option value="">Choose a security question</option>
+            <option value="What was the name of your first school?">What was the name of your first school?</option>
+            <option value="What is the name of your favorite teacher?">What is the name of your favorite teacher?</option>
+            <option value="What was your childhood nickname?">What was your childhood nickname?</option>
+            <option value="What was the model of your first phone?">What was the model of your first phone?</option>
+            <option value="What is the name of the street you grew up on?">What is the name of the street you grew up on?</option>
+            <option value="What was your first dream job?">What was your first dream job?</option>
+          </select>
+          <input id="signUpSecurityAnswer" type="text" placeholder="Security answer" required>
           <div class="auth-row">
             <input id="signUpAge" type="number" min="13" max="100" placeholder="Age" required>
             <select id="signUpGender" required>
@@ -58,6 +66,15 @@
           <input id="resetName" type="text" placeholder="Registered full name" required>
           <input id="resetEmail" type="email" placeholder="Registered email" required>
           <input id="resetStudentId" type="text" placeholder="Student ID" required>
+          <select id="resetSecurityQuestion" required>
+            <option value="">Choose your security question</option>
+            <option value="What was the name of your first school?">What was the name of your first school?</option>
+            <option value="What is the name of your favorite teacher?">What is the name of your favorite teacher?</option>
+            <option value="What was your childhood nickname?">What was your childhood nickname?</option>
+            <option value="What was the model of your first phone?">What was the model of your first phone?</option>
+            <option value="What is the name of the street you grew up on?">What is the name of the street you grew up on?</option>
+            <option value="What was your first dream job?">What was your first dream job?</option>
+          </select>
           <input id="resetSecurityAnswer" type="text" placeholder="Security answer" required>
           <input id="resetPassword" type="password" minlength="4" placeholder="New password" required>
           <button class="auth-submit" type="submit">Reset Password</button>

@@ -173,10 +173,11 @@ def validate_reset_identity(data):
     name = data.get("name", "").strip()
     email = data.get("email", "").strip().lower()
     student_id = data.get("studentId", "").strip()
+    security_question = data.get("securityQuestion", "").strip()
     security_answer = data.get("securityAnswer", "").strip()
 
-    if not name or not email or not student_id or not security_answer:
-        return None, "Full name, email, student ID, and security answer are required", 400
+    if not name or not email or not student_id or not security_question or not security_answer:
+        return None, "Full name, email, student ID, security question, and security answer are required", 400
 
     user = database.get_user_by_email(email)
 
@@ -191,6 +192,12 @@ def validate_reset_identity(data):
 
     if user["studentId"].strip().lower() != student_id.lower():
         return None, "Student ID does not match this account", 403
+
+    if not user.get("securityQuestion"):
+        return None, "Security question is not set for this account", 403
+
+    if user["securityQuestion"].strip().lower() != security_question.lower():
+        return None, "Security question does not match this account", 403
 
     if not user.get("securityAnswer"):
         return None, "Security answer is not set for this account", 403
