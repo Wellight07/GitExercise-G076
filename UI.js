@@ -1291,5 +1291,8 @@ document.addEventListener("DOMContentLoaded", async function() {
 
   if (user) {
     enterApp(user);
+  } else {
+    document.getElementById("appShell").classList.add("app-hidden");
+    document.getElementById("home").style.display = "flex";
   }
 });

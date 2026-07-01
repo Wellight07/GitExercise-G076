@@ -68,6 +68,7 @@ body.dark-mode .history-stat strong {
 
 .home-page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -267,6 +268,10 @@ body.dark-mode .history-stat strong {
 }
 
 .app-hidden {
+  display: none;
+}
+
+.app-shell.app-hidden {
   display: none;
 }
 
@@ -1171,7 +1176,8 @@ td {
 
 @media (max-width: 900px) {
   .home-page {
-    min-height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
     padding: 28px;
   }
 
@@ -1430,4 +1436,8 @@ td {
   .goal-card {
     padding: 14px;
   }
+}
+
+.app-shell.app-hidden {
+  display: none !important;
 }
