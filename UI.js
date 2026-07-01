@@ -557,6 +557,15 @@ async function addTransaction(type) {
   const category = getValue(isIncome ? "incomeCategory" : "expenseCategory");
   const user = getCurrentUser();
 
+  const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+const selectedDate = new Date(date + "T00:00:00");
+
+if (selectedDate > today) {
+    showMessage("Future dates are not allowed.", "error");
+    return;
+}
   if (!user || !name || !Number.isFinite(amount) || amount <= 0 || !date || !category || !currency) {
     showMessage("Please fill in name, amount greater than 0, currency, date, and category.", "error");
     return;
@@ -1271,6 +1280,10 @@ function escapeHtml(value) {
 document.addEventListener("DOMContentLoaded", async function() {
   await loadCurrencies();
   applySettings();
+ 
+  const today = new Date().toISOString().split("T")[0];
+document.getElementById("incomeDate").max = today;
+document.getElementById("expenseDate").max = today;
   const user = getCurrentUser();
 
   if (user) {
