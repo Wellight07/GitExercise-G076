@@ -96,15 +96,29 @@
         </div>
       </div>
       <nav class="menu">
-        <div class="active-menu" onclick="showPage('dashboard', this)">Dashboard</div>
-        <div onclick="showPage('add', this)">Add</div>
-        <div onclick="showPage('analysis', this)">Analysis</div>
-        <div onclick="showPage('settings', this)">Settings</div>
-        <div onclick="showPage('history', this)">History</div>
-        <div onclick="showPage('goals', this)">Goals</div>
+        <div class="active-menu" data-page="dashboard" onclick="showPage('dashboard', this)">Dashboard</div>
+        <div data-page="add" onclick="showPage('add', this)">Add</div>
+        <div data-page="analysis" onclick="showPage('analysis', this)">Analysis</div>
+        <div data-page="settings" onclick="showPage('settings', this)">Settings</div>
+        <div data-page="history" onclick="showPage('history', this)">History</div>
+        <div data-page="goals" onclick="showPage('goals', this)">Goals</div>
       </nav>
       <button class="logout-btn" type="button" onclick="logout()">Sign Out</button>
     </aside>
+
+    <header class="mobile-topbar">
+      <div class="mobile-user">
+        <div id="mobileUserAvatar" class="user-avatar">U</div>
+        <div>
+          <strong id="mobileUserName">User</strong>
+          <small>BudgetMate</small>
+        </div>
+      </div>
+      <div class="mobile-actions">
+        <button id="mobileSettingsBtn" class="mobile-top-action" data-page="settings" type="button" onclick="showPage('settings', this)">Settings</button>
+        <button class="mobile-top-action" type="button" onclick="logout()">Sign Out</button>
+      </div>
+    </header>
 
     <main class="main">
       <section id="dashboard" class="page active">
@@ -414,6 +428,14 @@
         <section class="goal-list" id="goalList"></section>
       </section>
     </main>
+
+    <nav class="mobile-bottom-nav">
+      <button class="active-menu" data-page="dashboard" type="button" onclick="showPage('dashboard', this)">Dashboard</button>
+      <button data-page="add" type="button" onclick="showPage('add', this)">Add</button>
+      <button data-page="analysis" type="button" onclick="showPage('analysis', this)">Analysis</button>
+      <button data-page="history" type="button" onclick="showPage('history', this)">History</button>
+      <button data-page="goals" type="button" onclick="showPage('goals', this)">Goals</button>
+    </nav>
   </div>
 
   <script src="UI.js"></script>

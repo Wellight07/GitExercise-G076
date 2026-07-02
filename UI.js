@@ -45,6 +45,8 @@ async function enterApp(user, settings) {
   setText("currentUserEmail", user.email);
   setText("currentUserAvatar", user.name.charAt(0).toUpperCase());
   setText("currentUserDetails", (user.age || "-") + " years | " + (user.gender || "Not set"));
+  setText("mobileUserName", user.name);
+  setText("mobileUserAvatar", user.name.charAt(0).toUpperCase());
   setValue("settingsName", user.name);
   setValue("settingsStudentId", user.studentId || "");
   setValue("settingsSecurityQuestion", user.securityQuestion || "");
@@ -306,7 +308,7 @@ async function savePreferenceSettings() {
 
 function showPage(pageId, menuItem) {
   const pages = document.querySelectorAll(".page");
-  const menuItems = document.querySelectorAll(".menu div");
+  const menuItems = document.querySelectorAll(".menu div, .mobile-bottom-nav button, .mobile-top-action");
 
   pages.forEach(function(page) {
     page.classList.remove("active");
@@ -317,7 +319,14 @@ function showPage(pageId, menuItem) {
   });
 
   document.getElementById(pageId).classList.add("active");
-  menuItem.classList.add("active-menu");
+  document.querySelectorAll('[data-page="' + pageId + '"]').forEach(function(item) {
+    item.classList.add("active-menu");
+  });
+
+  if (menuItem) {
+    menuItem.classList.add("active-menu");
+  }
+
   loadDashboard();
 }
 
