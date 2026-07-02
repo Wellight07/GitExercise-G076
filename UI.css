@@ -489,6 +489,55 @@ body.dark-mode .history-stat strong {
   margin-bottom: 16px;
 }
 
+.edit-transaction-panel {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #d9e2f2;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.edit-transaction-grid {
+  display: grid;
+  grid-template-columns: 130px repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.edit-transaction-grid input,
+.edit-transaction-grid select {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #d9e2f2;
+  border-radius: 8px;
+  background: white;
+}
+
+.edit-actions,
+.transaction-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-actions {
+  margin-top: 12px;
+}
+
+.edit-btn {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  color: white;
+  background: #223161;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.edit-btn:hover {
+  background: #2d3d78;
+}
+
 .history-stat {
   padding: 12px;
   border-radius: 8px;
@@ -1294,6 +1343,10 @@ td {
     justify-content: stretch;
   }
 
+  .edit-transaction-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .security-panel,
   .security-form,
   .exchange-grid {
@@ -1421,6 +1474,7 @@ td {
   }
 
   .auth-row,
+  .edit-transaction-grid,
   .history-tools {
     grid-template-columns: 1fr;
   }
@@ -1510,9 +1564,16 @@ td {
   .tool-btn,
   .primary-btn,
   .delete-btn,
+  .edit-btn,
   .auth-submit,
   .logout-btn {
     width: 100%;
+  }
+
+  .edit-actions,
+  .transaction-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }
 

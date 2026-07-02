@@ -632,6 +632,55 @@ def delete_transaction(transaction_id):
     return jsonify({"message": "Transaction deleted successfully"})
 
 
+@app.route("/transactions/<int:transaction_id>", methods=["PUT"])
+def update_transaction(transaction_id):
+    data = request.get_json(silent=True) or {}
+    required_fields = ["user_id", "type", "name", "amount", "category", "date"]
+
+    for field in required_fields:
+        if field not in data or data[field] in ["", None]:
+            return jsonify({"error": f"{field} is required"}), 400
+
+    if data["type"] not in ["income", "expense"]:
+        return jsonify({"error": "type must be income or expense"}), 400
+
+    try:
+        original_amount = float(data["amount"])
+    except (TypeError, ValueError):
+        return jsonify({"error": "amount must be a valid number"}), 400
+
+    if original_amount <= 0:
+        return jsonify({"error": "amount must be greater than 0"}), 400
+
+    original_currency = normalize_currency(data.get("currency", data.get("originalCurrency", "MYR")))
+    display_currency = normalize_currency(data.get("displayCurrency", data.get("currency", "MYR")))
+
+    try:
+        converted_amount, exchange_rate = convert_currency(original_amount, original_currency, display_currency)
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 502
+
+    updated_count = database.update_transaction(
+        transaction_id,
+        data["user_id"],
+        data["type"],
+        data["name"],
+        converted_amount,
+        data["category"],
+        data["date"],
+        original_amount,
+        original_currency,
+        exchange_rate,
+    )
+
+    if updated_count == 0:
+        return jsonify({"error": "Transaction not found"}), 404
+
+    return jsonify({"message": "Transaction updated successfully"})
+
+
 @app.route("/goals")
 def goals():
     user_id = request.args.get("user_id")

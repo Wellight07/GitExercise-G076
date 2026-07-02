@@ -368,6 +368,30 @@
         </div>
 
         <section class="panel">
+          <div id="editTransactionPanel" class="edit-transaction-panel auth-hidden">
+            <div class="panel-title">
+              <div>
+                <h3>Edit Transaction</h3>
+                <p>Update the selected record, then save changes.</p>
+              </div>
+            </div>
+            <div class="edit-transaction-grid">
+              <input id="editTransactionId" type="hidden">
+              <select id="editType" onchange="updateEditCategoryOptions()">
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+              </select>
+              <input id="editName" type="text" placeholder="Name">
+              <input id="editAmount" type="number" min="0.01" step="0.01" placeholder="Amount">
+              <select id="editCurrency"></select>
+              <select id="editCategory"></select>
+              <input id="editDate" type="date">
+            </div>
+            <div class="edit-actions">
+              <button class="primary-btn" type="button" onclick="saveEditedTransaction()">Save Changes</button>
+              <button class="tool-btn secondary" type="button" onclick="cancelEditTransaction()">Cancel</button>
+            </div>
+          </div>
           <div id="historySummary" class="history-summary"></div>
           <table>
             <thead>

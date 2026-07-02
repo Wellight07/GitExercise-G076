@@ -12,6 +12,27 @@ let supportedCurrencies = [
   { code: "USD", name: "US Dollar" },
   { code: "SGD", name: "Singapore Dollar" }
 ];
+const transactionCategories = {
+  income: ["Allowance", "Salary", "Scholarship", "Bonus", "Gift", "Other"],
+  expense: [
+    "Food",
+    "Transport",
+    "Shopping",
+    "Education",
+    "Housing",
+    "Utilities",
+    "Healthcare",
+    "Entertainment",
+    "Groceries",
+    "Phone & Internet",
+    "Insurance",
+    "Personal Care",
+    "Travel",
+    "Gifts & Donations",
+    "Subscriptions",
+    "Other"
+  ]
+};
 
 async function apiRequest(url, options) {
   const response = await fetch(url, Object.assign({
@@ -220,7 +241,7 @@ function populateCurrencySelects() {
     return '<option value="' + escapeHtml(currency.code) + '">' +
       escapeHtml(currency.code + " - " + currency.name) + '</option>';
   }).join("");
-  const ids = ["settingsCurrency", "incomeCurrency", "expenseCurrency", "convertFrom", "convertTo"];
+  const ids = ["settingsCurrency", "incomeCurrency", "expenseCurrency", "editCurrency", "convertFrom", "convertTo"];
 
   ids.forEach(function(id) {
     const element = document.getElementById(id);
@@ -233,6 +254,7 @@ function populateCurrencySelects() {
   const currency = normalizeCurrencyCode(getSettings().currency);
   setValue("incomeCurrency", currency);
   setValue("expenseCurrency", currency);
+  setValue("editCurrency", currency);
   setValue("convertFrom", "USD");
   setValue("convertTo", currency);
 }
@@ -635,6 +657,110 @@ async function deleteTransaction(id) {
   }
 }
 
+function updateEditCategoryOptions(selectedCategory) {
+  const type = getValue("editType") || "expense";
+  const categorySelect = document.getElementById("editCategory");
+  const categories = transactionCategories[type] || transactionCategories.expense;
+
+  if (!categorySelect) {
+    return;
+  }
+
+  categorySelect.innerHTML = categories.map(function(category) {
+    return '<option value="' + escapeHtml(category) + '">' + escapeHtml(category) + '</option>';
+  }).join("");
+
+  if (selectedCategory && categories.indexOf(selectedCategory) === -1) {
+    categorySelect.innerHTML += '<option value="' + escapeHtml(selectedCategory) + '">' +
+      escapeHtml(selectedCategory) + '</option>';
+  }
+
+  setValue("editCategory", selectedCategory || categories[0]);
+}
+
+function startEditTransaction(id) {
+  const transaction = getTransactions().find(function(item) {
+    return Number(item.id) === Number(id);
+  });
+  const panel = document.getElementById("editTransactionPanel");
+
+  if (!transaction || !panel) {
+    showMessage("Transaction not found.", "error");
+    return;
+  }
+
+  setValue("editTransactionId", transaction.id);
+  setValue("editType", transaction.type);
+  setValue("editName", transaction.name);
+  setValue("editAmount", transaction.originalAmount || transaction.amount);
+  setValue("editCurrency", normalizeCurrencyCode(transaction.originalCurrency || transaction.displayCurrency || getSettings().currency));
+  updateEditCategoryOptions(transaction.category);
+  setValue("editDate", transaction.date);
+  panel.classList.remove("auth-hidden");
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function cancelEditTransaction() {
+  const panel = document.getElementById("editTransactionPanel");
+
+  if (panel) {
+    panel.classList.add("auth-hidden");
+  }
+
+  setValue("editTransactionId", "");
+  setValue("editName", "");
+  setValue("editAmount", "");
+  setValue("editCategory", "");
+  setValue("editDate", "");
+}
+
+async function saveEditedTransaction() {
+  const user = getCurrentUser();
+  const id = getValue("editTransactionId");
+  const type = getValue("editType");
+  const name = getValue("editName");
+  const amount = Number(getValue("editAmount"));
+  const currency = normalizeCurrencyCode(getValue("editCurrency"));
+  const category = getValue("editCategory");
+  const date = getValue("editDate");
+
+  if (!user || !id || !type || !name || !Number.isFinite(amount) || amount <= 0 || !currency || !category || !date) {
+    showMessage("Please fill in type, name, amount greater than 0, currency, category, and date.", "error");
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const selectedDate = new Date(date + "T00:00:00");
+
+  if (selectedDate > today) {
+    showMessage("Future dates are not allowed.", "error");
+    return;
+  }
+
+  try {
+    await apiRequest("/transactions/" + encodeURIComponent(id), {
+      method: "PUT",
+      body: JSON.stringify({
+        user_id: user.id,
+        type: type,
+        name: name,
+        amount: amount,
+        currency: currency,
+        displayCurrency: normalizeCurrencyCode(getSettings().currency),
+        category: category,
+        date: date
+      })
+    });
+    await refreshUserData();
+    cancelEditTransaction();
+    showMessage("Transaction updated.", "success");
+    loadDashboard();
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+}
+
 function calculateTotals(transactions) {
   let income = 0;
   let expense = 0;
@@ -992,7 +1118,12 @@ function renderHistory(transactions) {
         <td>${escapeHtml(item.category)}</td>
         <td>${escapeHtml(item.date)}</td>
         <td class="${amountClass}">${sign} ${formatTransactionAmount(item)}</td>
-        <td><button class="delete-btn" onclick="deleteTransaction(${item.id})">Delete</button></td>
+        <td>
+          <div class="transaction-actions">
+            <button class="edit-btn" onclick="startEditTransaction(${item.id})">Edit</button>
+            <button class="delete-btn" onclick="deleteTransaction(${item.id})">Delete</button>
+          </div>
+        </td>
       </tr>
     `;
   }).join("");
@@ -1291,10 +1422,12 @@ function escapeHtml(value) {
 document.addEventListener("DOMContentLoaded", async function() {
   await loadCurrencies();
   applySettings();
+  updateEditCategoryOptions();
 
   const today = new Date().toISOString().split("T")[0];
   document.getElementById("incomeDate").max = today;
   document.getElementById("expenseDate").max = today;
+  document.getElementById("editDate").max = today;
 
   const user = getCurrentUser();
 

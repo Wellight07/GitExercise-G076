@@ -293,6 +293,40 @@ def get_all_transactions(user_id=None):
     conn.close()
     return rows
 
+
+def update_transaction(transaction_id, user_id, type, name, amount, category, date, original_amount, original_currency, exchange_rate):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE transactions
+        SET type = ?,
+            name = ?,
+            amount = ?,
+            original_amount = ?,
+            original_currency = ?,
+            exchange_rate = ?,
+            category = ?,
+            date = ?
+        WHERE id = ? AND user_id = ?
+    """, (
+        type,
+        name,
+        amount,
+        original_amount,
+        original_currency,
+        exchange_rate,
+        category,
+        date,
+        transaction_id,
+        user_id,
+    ))
+
+    conn.commit()
+    updated_count = cursor.rowcount
+    conn.close()
+    return updated_count
+
 # 5. Delete transactions
 def delete_transactions(transaction_id, user_id=None):
     conn = get_db()
